@@ -162,8 +162,21 @@ class Tablero {
   /// Lista personalizada de columnas / estados para el tablero
   final List<String> columnas;
 
+  /// Lista personalizada de roles para los integrantes del tablero según la metodología
+  final List<String> roles;
+
   /// Configuración adicional
   final Map<String, dynamic>? configuracion;
+
+  static const List<String> rolesPredeterminados = [
+    'Líder de Proyecto',
+    'Programador / Desarrollador',
+    'Tester / QA',
+    'Diseñador UI/UX',
+    'Analista',
+    'Scrum Master',
+    'Product Owner',
+  ];
 
   const Tablero({
     required this.id,
@@ -181,6 +194,7 @@ class Tablero {
     this.tieneNotas = true,
     this.tieneRecordatorios = true,
     this.columnas = const ['Pendiente', 'En progreso', 'Completada'],
+    this.roles = rolesPredeterminados,
     this.configuracion,
   });
 
@@ -216,6 +230,9 @@ class Tablero {
       columnas: map['columnas'] != null
           ? List<String>.from(map['columnas'])
           : const ['Pendiente', 'En progreso', 'Completada'],
+      roles: map['roles'] != null
+          ? List<String>.from(map['roles'])
+          : rolesPredeterminados,
       configuracion: map['configuracion'] != null
           ? Map<String, dynamic>.from(map['configuracion'])
           : null,
@@ -245,6 +262,7 @@ class Tablero {
       'tieneNotas': tieneNotas,
       'tieneRecordatorios': tieneRecordatorios,
       'columnas': columnas,
+      'roles': roles,
       'configuracion': configuracion,
     };
   }
@@ -303,6 +321,7 @@ class Tablero {
     bool? tieneNotas,
     bool? tieneRecordatorios,
     List<String>? columnas,
+    List<String>? roles,
     Map<String, dynamic>? configuracion,
   }) {
     return Tablero(
@@ -321,6 +340,7 @@ class Tablero {
       tieneNotas: tieneNotas ?? this.tieneNotas,
       tieneRecordatorios: tieneRecordatorios ?? this.tieneRecordatorios,
       columnas: columnas ?? this.columnas,
+      roles: roles ?? this.roles,
       configuracion: configuracion ?? this.configuracion,
     );
   }

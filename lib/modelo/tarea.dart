@@ -97,6 +97,67 @@ class AdjuntoTarea {
   }
 }
 
+/// Representa un comentario de retroalimentación u observación en una tarea
+class ComentarioTarea {
+  final String id;
+  final String autorId;
+  final String autorNombre;
+  final String? autorFotoUrl;
+  final String contenido;
+  final DateTime fechaCreacion;
+
+  const ComentarioTarea({
+    required this.id,
+    required this.autorId,
+    required this.autorNombre,
+    this.autorFotoUrl,
+    required this.contenido,
+    required this.fechaCreacion,
+  });
+
+  factory ComentarioTarea.fromMap(Map<String, dynamic> map) {
+    return ComentarioTarea(
+      id: map['id']?.toString() ?? '',
+      autorId: map['autorId']?.toString() ?? '',
+      autorNombre: map['autorNombre']?.toString() ?? 'Integrante',
+      autorFotoUrl: map['autorFotoUrl']?.toString(),
+      contenido: map['contenido']?.toString() ?? '',
+      fechaCreacion: map['fechaCreacion'] is Timestamp
+          ? (map['fechaCreacion'] as Timestamp).toDate()
+          : DateTime.tryParse(map['fechaCreacion']?.toString() ?? '') ?? DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'autorId': autorId,
+      'autorNombre': autorNombre,
+      'autorFotoUrl': autorFotoUrl,
+      'contenido': contenido,
+      'fechaCreacion': Timestamp.fromDate(fechaCreacion),
+    };
+  }
+
+  ComentarioTarea copyWith({
+    String? id,
+    String? autorId,
+    String? autorNombre,
+    String? autorFotoUrl,
+    String? contenido,
+    DateTime? fechaCreacion,
+  }) {
+    return ComentarioTarea(
+      id: id ?? this.id,
+      autorId: autorId ?? this.autorId,
+      autorNombre: autorNombre ?? this.autorNombre,
+      autorFotoUrl: autorFotoUrl ?? this.autorFotoUrl,
+      contenido: contenido ?? this.contenido,
+      fechaCreacion: fechaCreacion ?? this.fechaCreacion,
+    );
+  }
+}
+
 class Tarea {
   final String id;
   final String titulo;
@@ -111,6 +172,7 @@ class Tarea {
   final DateTime? fechaActualizacion;
   final List<String> etiquetas;
   final List<AdjuntoTarea> adjuntos;
+  final List<ComentarioTarea> comentarios;
   final int prioridad; // 1 = baja, 2 = media, 3 = alta
   final bool archivada;
   final String? creadaPor;
@@ -130,6 +192,7 @@ class Tarea {
     this.fechaActualizacion,
     this.etiquetas = const [],
     this.adjuntos = const [],
+    this.comentarios = const [],
     this.prioridad = 2,
     this.archivada = false,
     this.creadaPor,
@@ -181,6 +244,15 @@ class Tarea {
       }
     }
 
+    List<ComentarioTarea> comentariosList = [];
+    if (map['comentarios'] != null && map['comentarios'] is List) {
+      for (final item in (map['comentarios'] as List)) {
+        if (item is Map) {
+          comentariosList.add(ComentarioTarea.fromMap(Map<String, dynamic>.from(item)));
+        }
+      }
+    }
+
     return Tarea(
       id: id,
       titulo: tituloStr.trim().isNotEmpty ? tituloStr : 'Tarea sin título',
@@ -195,6 +267,7 @@ class Tarea {
       fechaActualizacion: _parseFecha(map['fechaActualizacion']),
       etiquetas: List<String>.from(map['etiquetas'] ?? []),
       adjuntos: adjuntosList,
+      comentarios: comentariosList,
       prioridad: _parsePrioridad(map['prioridad']),
       archivada: map['archivada'] ?? false,
       creadaPor: map['creadaPor']?.toString(),
@@ -219,6 +292,7 @@ class Tarea {
           : null,
       'etiquetas': etiquetas,
       'adjuntos': adjuntos.map((a) => a.toMap()).toList(),
+      'comentarios': comentarios.map((c) => c.toMap()).toList(),
       'prioridad': prioridad,
       'archivada': archivada,
       'creadaPor': creadaPor,
@@ -240,6 +314,7 @@ class Tarea {
     DateTime? fechaActualizacion,
     List<String>? etiquetas,
     List<AdjuntoTarea>? adjuntos,
+    List<ComentarioTarea>? comentarios,
     int? prioridad,
     bool? archivada,
     String? creadaPor,
@@ -259,6 +334,7 @@ class Tarea {
       fechaActualizacion: fechaActualizacion ?? this.fechaActualizacion,
       etiquetas: etiquetas ?? this.etiquetas,
       adjuntos: adjuntos ?? this.adjuntos,
+      comentarios: comentarios ?? this.comentarios,
       prioridad: prioridad ?? this.prioridad,
       archivada: archivada ?? this.archivada,
       creadaPor: creadaPor ?? this.creadaPor,

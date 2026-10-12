@@ -49,4 +49,14 @@ class FormatoUtil {
     final mes = fecha.month.toString().padLeft(2, '0');
     return '$dia/$mes/${fecha.year}';
   }
+
+  // Formateo de fecha y hora dd/mm/yyyy HH:mm
+  static String formatearFechaHora(DateTime? fecha) {
+    if (fecha == null) return 'Sin fecha';
+    final dia = fecha.day.toString().padLeft(2, '0');
+    final mes = fecha.month.toString().padLeft(2, '0');
+    final hora = fecha.hour.toString().padLeft(2, '0');
+    final min = fecha.minute.toString().padLeft(2, '0');
+    return '$dia/$mes/${fecha.year} $hora:$min';
+  }
 }

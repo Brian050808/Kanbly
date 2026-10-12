@@ -12,6 +12,7 @@ import '../modelo/tarea.dart';
 import '../servicios/firestore_service.dart';
 import '../utilerias/formato_util.dart';
 import 'calendario_tablero.dart';
+import 'pantalla_borradores_personales.dart';
 
 // ==========================================
 // 1. PANTALLA PRINCIPAL: TABLERO KANBAN
@@ -147,7 +148,7 @@ class _KanbanBoardWidgetState extends State<KanbanBoardWidget> {
                                   children: [
                                     Icon(Icons.note_alt_outlined, color: Colors.orange),
                                     SizedBox(width: 10),
-                                    Text('Notas para tareas'),
+                                    Text('Borradores y Notas'),
                                   ],
                                 ),
                               ),
@@ -615,6 +616,20 @@ class _KanbanBoardWidgetState extends State<KanbanBoardWidget> {
       return;
     }
 
+    if (tipoModulo == 'notas') {
+      if (tableroActivo == null) return;
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PantallaBorradoresPersonales(
+            tablero: tableroActivo,
+          ),
+        ),
+      );
+      return;
+    }
+
     String titulo = '';
     IconData icono = Icons.help;
     Color color = Colors.blue;
@@ -909,37 +924,43 @@ class TaskCardWidget extends StatelessWidget {
                             ],
                           ),
                           if (tablero?.esGrupal == true)
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: tieneAsignado ? const Color(0xFF52ABEB).withOpacity(0.12) : Colors.grey.shade100,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  CircleAvatar(
-                                    radius: 9,
-                                    backgroundColor: tieneAsignado ? const Color(0xFF52ABEB) : Colors.grey.shade400,
-                                    child: Text(
-                                      inicialesAsignado,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 7,
-                                        fontWeight: FontWeight.bold,
+                            Flexible(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: tieneAsignado ? const Color(0xFF52ABEB).withOpacity(0.12) : Colors.grey.shade100,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 9,
+                                      backgroundColor: tieneAsignado ? const Color(0xFF52ABEB) : Colors.grey.shade400,
+                                      child: Text(
+                                        inicialesAsignado,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 7,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    tieneAsignado ? nombreAsignado : 'Sin asignar',
-                                    style: TextStyle(
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.bold,
-                                      color: tieneAsignado ? const Color(0xFF52ABEB) : Colors.grey.shade600,
+                                    const SizedBox(width: 4),
+                                    Flexible(
+                                      child: Text(
+                                        tieneAsignado ? nombreAsignado : 'Sin asignar',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.bold,
+                                          color: tieneAsignado ? const Color(0xFF52ABEB) : Colors.grey.shade600,
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                         ],

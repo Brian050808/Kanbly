@@ -46,15 +46,7 @@ class _FormularioTableroState extends State<FormularioTablero>
   final Color verdeTurquesa = const Color(0xFF63D0A1);
   final Color grisOscuro = const Color(0xFF1E293B);
 
-  static const List<String> _rolesKanbanDisponibles = [
-    'Líder de Proyecto',
-    'Programador / Desarrollador',
-    'Tester / QA',
-    'Diseñador UI/UX',
-    'Analista',
-    'Scrum Master',
-    'Product Owner',
-  ];
+  List<String> _roles = List.from(Tablero.rolesPredeterminados);
 
   @override
   void initState() {
@@ -73,6 +65,11 @@ class _FormularioTableroState extends State<FormularioTablero>
         widget.tablero!.columnas.isNotEmpty
             ? widget.tablero!.columnas
             : ['Pendiente', 'En progreso', 'Completada'],
+      );
+      _roles = List<String>.from(
+        widget.tablero!.roles.isNotEmpty
+            ? widget.tablero!.roles
+            : Tablero.rolesPredeterminados,
       );
 
       if (widget.tablero!.fechaActualizacion != null) {
@@ -433,6 +430,7 @@ class _FormularioTableroState extends State<FormularioTablero>
                     onPressed: () {
                       setState(() {
                         _columnas = ['Pendiente', 'En progreso', 'Completada'];
+                        _roles = ['Líder de Proyecto', 'Analista', 'Programador / Desarrollador', 'Tester / QA'];
                       });
                     },
                     icon: const Icon(Icons.restore_rounded, size: 16),
@@ -455,6 +453,13 @@ class _FormularioTableroState extends State<FormularioTablero>
                           'En Desarrollo',
                           'QA / Pruebas',
                           'Aprobado'
+                        ];
+                        _roles = [
+                          'Líder Técnico',
+                          'Desarrollador Backend',
+                          'Desarrollador Frontend',
+                          'QA Engineer',
+                          'Diseñador UI/UX'
                         ];
                       });
                     },
@@ -480,10 +485,45 @@ class _FormularioTableroState extends State<FormularioTablero>
                           'En Revisión',
                           'Completado'
                         ];
+                        _roles = [
+                          'Product Owner',
+                          'Scrum Master',
+                          'Desarrollador',
+                          'QA / Tester'
+                        ];
                       });
                     },
                     icon: const Icon(Icons.bolt_rounded, size: 16),
                     label: const Text('Ágil / Scrum',
+                        style: TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.bold)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: colorTema,
+                      side:
+                          BorderSide(color: colorTema.withOpacity(0.5)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _columnas = [
+                          'Brief / Idea',
+                          'En Diseño',
+                          'En Revisión',
+                          'Aprobado'
+                        ];
+                        _roles = [
+                          'Director Creativo',
+                          'Diseñador UI/UX',
+                          'Ilustrador',
+                          'Cliente / Revisor'
+                        ];
+                      });
+                    },
+                    icon: const Icon(Icons.palette_outlined, size: 16),
+                    label: const Text('Diseño & Creativo',
                         style: TextStyle(
                             fontSize: 12, fontWeight: FontWeight.bold)),
                     style: OutlinedButton.styleFrom(
@@ -619,6 +659,132 @@ class _FormularioTableroState extends State<FormularioTablero>
             ],
           ),
         ),
+        const SizedBox(height: 20),
+
+        // LISTA DE ROLES DEL EQUIPO SEGÚN METODOLOGÍA
+        _tarjetaSeccion(
+          titulo: 'Roles del Equipo (${_roles.length})',
+          icono: Icons.badge_outlined,
+          colorHeader: colorTema,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Personaliza los roles de los integrantes según la metodología de tu proyecto:',
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+              ),
+              const SizedBox(height: 12),
+              ..._roles.asMap().entries.map((entry) {
+                final idx = entry.key;
+                final rolNombre = entry.value;
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 28,
+                        height: 28,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: colorTema.withOpacity(0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          '${idx + 1}',
+                          style: TextStyle(
+                            color: colorTema,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          rolNombre,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: Color(0xFF1E293B),
+                          ),
+                        ),
+                      ),
+                      if (idx > 0)
+                        IconButton(
+                          icon: const Icon(Icons.arrow_upward_rounded,
+                              size: 18, color: Colors.grey),
+                          tooltip: 'Mover hacia arriba',
+                          onPressed: () {
+                            setState(() {
+                              final item = _roles.removeAt(idx);
+                              _roles.insert(idx - 1, item);
+                            });
+                          },
+                        ),
+                      if (idx < _roles.length - 1)
+                        IconButton(
+                          icon: const Icon(Icons.arrow_downward_rounded,
+                              size: 18, color: Colors.grey),
+                          tooltip: 'Mover hacia abajo',
+                          onPressed: () {
+                            setState(() {
+                              final item = _roles.removeAt(idx);
+                              _roles.insert(idx + 1, item);
+                            });
+                          },
+                        ),
+                      IconButton(
+                        icon: const Icon(Icons.edit_outlined,
+                            size: 18, color: Colors.blue),
+                        tooltip: 'Editar nombre del rol',
+                        onPressed: () => _dialogEditarRol(idx),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline_rounded,
+                            size: 18, color: Colors.redAccent),
+                        tooltip: 'Eliminar rol',
+                        onPressed: _roles.length <= 1
+                            ? null
+                            : () {
+                                setState(() {
+                                  _roles.removeAt(idx);
+                                });
+                              },
+                      ),
+                    ],
+                  ),
+                );
+              }),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                height: 46,
+                child: ElevatedButton.icon(
+                  onPressed: _dialogAgregarRol,
+                  icon: const Icon(Icons.add_rounded,
+                      size: 20, color: Colors.white),
+                  label: const Text('Agregar Nuevo Rol',
+                      style: TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: colorTema,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    elevation: 0,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
         const SizedBox(height: 32),
       ],
     );
@@ -711,6 +877,106 @@ class _FormularioTableroState extends State<FormularioTablero>
               if (nombre.isNotEmpty) {
                 setState(() {
                   _columnas[index] = nombre;
+                });
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Guardar',
+                style: TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _dialogAgregarRol() {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Agregar Nuevo Rol',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: InputDecoration(
+            labelText: 'Nombre del rol',
+            hintText: 'Ej. Líder Técnico, Scrum Master, QA...',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: azulCielo,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () {
+              final nombre = controller.text.trim();
+              if (nombre.isNotEmpty) {
+                if (_roles
+                    .map((r) => r.toLowerCase())
+                    .contains(nombre.toLowerCase())) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text('Ya existe un rol con este nombre')),
+                  );
+                  return;
+                }
+                setState(() {
+                  _roles.add(nombre);
+                });
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Agregar',
+                style: TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _dialogEditarRol(int index) {
+    final controller = TextEditingController(text: _roles[index]);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Editar Rol',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: InputDecoration(
+            labelText: 'Nombre del rol',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: azulCielo,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () {
+              final nombre = controller.text.trim();
+              if (nombre.isNotEmpty) {
+                setState(() {
+                  _roles[index] = nombre;
                 });
                 Navigator.pop(context);
               }
@@ -1210,10 +1476,9 @@ class _FormularioTableroState extends State<FormularioTablero>
                             color: Color(0xFF1E293B))),
                     const SizedBox(height: 6),
                     DropdownButtonFormField<String>(
-                      initialValue: _rolesKanbanDisponibles
-                              .contains(rolKanbanSeleccionado)
+                      initialValue: _roles.contains(rolKanbanSeleccionado)
                           ? rolKanbanSeleccionado
-                          : 'Programador / Desarrollador',
+                          : (_roles.isNotEmpty ? _roles.first : 'Programador / Desarrollador'),
                       isExpanded: true,
                       decoration: InputDecoration(
                         filled: true,
@@ -1225,7 +1490,7 @@ class _FormularioTableroState extends State<FormularioTablero>
                         contentPadding: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 12),
                       ),
-                      items: _rolesKanbanDisponibles.map((rol) {
+                      items: _roles.map((rol) {
                         return DropdownMenuItem<String>(
                           value: rol,
                           child: Text(rol, style: const TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis),
@@ -1619,6 +1884,7 @@ class _FormularioTableroState extends State<FormularioTablero>
           columnas: _columnas.isNotEmpty
               ? _columnas
               : const ['Pendiente', 'En progreso', 'Completada'],
+          roles: _roles.isNotEmpty ? _roles : Tablero.rolesPredeterminados,
           fechaCreacion: widget.tablero?.fechaCreacion ?? DateTime.now(),
           tieneCalendario: _tieneCalendario,
           tieneNotas: _tieneNotas,
@@ -1670,7 +1936,7 @@ class _FormularioTableroState extends State<FormularioTablero>
   Future<void> _agregarMiembro() async {
     final TextEditingController emailController = TextEditingController();
     final dialogFormKey = GlobalKey<FormState>();
-    String rolSeleccionado = 'Programador / Desarrollador';
+    String rolSeleccionado = _roles.isNotEmpty ? _roles.first : 'Programador / Desarrollador';
 
     showDialog(
       context: context,
@@ -1717,7 +1983,9 @@ class _FormularioTableroState extends State<FormularioTablero>
                               fontWeight: FontWeight.bold, fontSize: 13)),
                       const SizedBox(height: 8),
                       DropdownButtonFormField<String>(
-                        initialValue: rolSeleccionado,
+                        initialValue: _roles.contains(rolSeleccionado)
+                            ? rolSeleccionado
+                            : (_roles.isNotEmpty ? _roles.first : 'Programador / Desarrollador'),
                         isExpanded: true,
                         decoration: InputDecoration(
                           border: OutlineInputBorder(
@@ -1725,7 +1993,7 @@ class _FormularioTableroState extends State<FormularioTablero>
                           contentPadding: const EdgeInsets.symmetric(
                               horizontal: 16, vertical: 12),
                         ),
-                        items: _rolesKanbanDisponibles.map((rol) {
+                        items: _roles.map((rol) {
                           return DropdownMenuItem<String>(
                             value: rol,
                             child: Text(rol,

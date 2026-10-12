@@ -4,6 +4,7 @@ import '../modelo/usuario.dart';
 import '../modelo/tablero.dart';
 import '../modelo/tarea.dart';
 import '../modelo/invitacion.dart';
+import '../modelo/borrador_nota.dart';
 import 'notificacion_vencimiento_service.dart';
 
 class FirestoreService {
@@ -367,6 +368,36 @@ class FirestoreService {
     }
   }
 
+  /// Agrega un comentario a una tarea en Firestore
+  Future<void> agregarComentarioTarea({
+    required String tareaId,
+    required ComentarioTarea comentario,
+  }) async {
+    try {
+      await _firestore.collection('tareas').doc(tareaId).update({
+        'comentarios': FieldValue.arrayUnion([comentario.toMap()]),
+        'fechaActualizacion': Timestamp.now(),
+      });
+    } catch (e) {
+      throw Exception('Error al agregar comentario: $e');
+    }
+  }
+
+  /// Elimina un comentario de una tarea en Firestore
+  Future<void> eliminarComentarioTarea({
+    required String tareaId,
+    required ComentarioTarea comentario,
+  }) async {
+    try {
+      await _firestore.collection('tareas').doc(tareaId).update({
+        'comentarios': FieldValue.arrayRemove([comentario.toMap()]),
+        'fechaActualizacion': Timestamp.now(),
+      });
+    } catch (e) {
+      throw Exception('Error al eliminar comentario: $e');
+    }
+  }
+
   // ========== STREAMS (Realtime con patrón Observer) ==========
 
   Stream<List<Tarea>> streamTareasDeTablero(String tableroId) {
@@ -575,5 +606,91 @@ class FirestoreService {
       'estado': 'rechazada',
       'fechaRespuesta': FieldValue.serverTimestamp(),
     });
+  }
+
+  // ========== MÉTODOS PARA BORRADORES Y NOTAS PERSONALES ==========
+
+  /// Escucha en tiempo real los borradores del usuario actual para un tablero específico
+  Stream<List<BorradorNota>> escucharBorradoresNota(String usuarioId, String tableroId) {
+    return _firestore
+        .collection('borradores_notas')
+        .where('usuarioId', isEqualTo: usuarioId)
+        .where('tableroId', isEqualTo: tableroId)
+        .snapshots()
+        .map((snapshot) {
+      final lista = snapshot.docs.map((doc) {
+        return BorradorNota.fromMap(doc.id, doc.data());
+      }).toList();
+      lista.sort((a, b) => b.fechaCreacion.compareTo(a.fechaCreacion));
+      return lista;
+    });
+  }
+
+  /// Crea un nuevo borrador o nota personal
+  Future<String> crearBorradorNota(BorradorNota borrador) async {
+    try {
+      final docRef = await _firestore.collection('borradores_notas').add(borrador.toMap());
+      return docRef.id;
+    } catch (e) {
+      throw Exception('Error al crear borrador: $e');
+    }
+  }
+
+  /// Actualiza un borrador o nota personal existente
+  Future<void> actualizarBorradorNota(BorradorNota borrador) async {
+    try {
+      final data = borrador.toMap();
+      data['fechaActualizacion'] = FieldValue.serverTimestamp();
+      await _firestore.collection('borradores_notas').doc(borrador.id).update(data);
+    } catch (e) {
+      throw Exception('Error al actualizar borrador: $e');
+    }
+  }
+
+  /// Elimina un borrador o nota personal
+  Future<void> eliminarBorradorNota(String borradorId) async {
+    try {
+      await _firestore.collection('borradores_notas').doc(borradorId).delete();
+    } catch (e) {
+      throw Exception('Error al eliminar borrador: $e');
+    }
+  }
+
+  /// Convierte un borrador personal en una tarea oficial publicada en el tablero
+  Future<Tarea> convertirBorradorATarea({
+    required BorradorNota borrador,
+    required String columnaDestino,
+    int? prioridad,
+  }) async {
+    try {
+      final tareaId = _firestore.collection('tareas').doc().id;
+      final enumEstado = EstadoTareaExtension.fromString(columnaDestino);
+      final prioridadFinal = prioridad ?? borrador.prioridad;
+
+      final nuevaTarea = Tarea(
+        id: tareaId,
+        titulo: borrador.titulo,
+        descripcion: borrador.contenido.isNotEmpty ? borrador.contenido : null,
+        estado: enumEstado,
+        estadoNombre: columnaDestino,
+        orden: 0,
+        tableroId: borrador.tableroId,
+        asignadoA: borrador.asignadoA,
+        fechaCreacion: DateTime.now(),
+        prioridad: prioridadFinal,
+        adjuntos: borrador.adjuntos,
+        archivada: false,
+        creadaPor: borrador.usuarioId,
+      );
+
+      await crearTareaConId(nuevaTarea);
+
+      // Eliminar el borrador después de convertirlo con éxito
+      await eliminarBorradorNota(borrador.id);
+
+      return nuevaTarea;
+    } catch (e) {
+      throw Exception('Error al convertir borrador a tarea: $e');
+    }
   }
 }
