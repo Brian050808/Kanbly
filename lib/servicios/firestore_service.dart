@@ -54,6 +54,14 @@ class FirestoreService {
     }
   }
 
+  Future<void> eliminarUsuario(String userId) async {
+    try {
+      await _firestore.collection('usuarios').doc(userId).delete();
+    } catch (e) {
+      throw Exception('Error al eliminar usuario: $e');
+    }
+  }
+
   // ========== TABLEROS ==========
   Future<String> crearTablero(Tablero tablero) async {
     try {
@@ -282,6 +290,22 @@ class FirestoreService {
           .toList();
     } catch (e) {
       throw Exception('Error al obtener tareas por estado: $e');
+    }
+  }
+
+  Future<List<Tarea>> obtenerTareasCreadasPorUsuario(String userId) async {
+    try {
+      final snapshot = await _firestore
+          .collection('tareas')
+          .where('creadaPor', isEqualTo: userId)
+          .get();
+
+      return snapshot.docs
+          .map((doc) => Tarea.fromMap(doc.id, doc.data()))
+          .where((tarea) => !tarea.archivada) // filtramos en Dart, no en la query
+          .toList();
+    } catch (e) {
+      throw Exception('Error al obtener tareas del usuario: $e');
     }
   }
 

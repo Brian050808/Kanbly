@@ -153,4 +153,50 @@ class AuthService {
       throw Exception('Error al enviar correo de restablecimiento: $e');
     }
   }
+
+  // Reautentica al usuario con su contraseña.
+  // Firebase exige esto antes de permitir borrar una cuenta, por seguridad:
+  // si alguien dejó su sesión abierta en un dispositivo compartido, no basta
+  // con tener la sesión activa para poder eliminarla, hay que confirmar la contraseña.
+  Future<void> reautenticar(String password) async {
+    final user = _auth.currentUser;
+    if (user == null || user.email == null) {
+      throw Exception('No hay una sesión activa');
+    }
+    try {
+      final credential = EmailAuthProvider.credential(
+        email: user.email!,
+        password: password,
+      );
+      await user.reauthenticateWithCredential(credential);
+    } on FirebaseAuthException catch (e) {
+      switch (e.code) {
+        case 'wrong-password':
+        case 'invalid-credential':
+          throw Exception('La contraseña ingresada es incorrecta');
+        case 'too-many-requests':
+          throw Exception('Demasiados intentos. Intenta más tarde');
+        case 'network-request-failed':
+          throw Exception('Sin conexión a internet. Verifica tu red');
+        default:
+          throw Exception(e.message ?? 'Error al verificar tu contraseña (${e.code})');
+      }
+    }
+  }
+
+  // Elimina la cuenta de Firebase Auth.
+  // IMPORTANTE: debe llamarse DESPUÉS de reautenticar y DESPUÉS de borrar
+  // los datos de Firestore, porque en cuanto se borra la cuenta de Auth,
+  // la sesión deja de ser válida para hacer más operaciones.
+  Future<void> eliminarCuentaAuth() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw Exception('No hay una sesión activa');
+    }
+    try {
+      await user.delete();
+    } on FirebaseAuthException catch (e) {
+      throw Exception(e.message ?? 'Error al eliminar la cuenta (${e.code})');
+    }
+  }
 }

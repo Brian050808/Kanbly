@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../controlador/auth_controller.dart';
+import 'perfil_usuario_view.dart'; // ← nuevo import
 
 class Encabezado extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback onMenuPressed;
@@ -43,13 +44,25 @@ class Encabezado extends StatelessWidget implements PreferredSizeWidget {
           builder: (context, authController, child) {
             return Padding(
               padding: const EdgeInsets.only(right: 16.0),
-              child: Center(
-                child: Text(
-                  authController.userName,
-                  style: const TextStyle(
-                    color: Color(0xFF63B09C),
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(8),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const PerfilUsuarioView(),
+                    ),
+                  );
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+                  child: Text(
+                    authController.userName,
+                    style: const TextStyle(
+                      color: Color(0xFF63B09C),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
                   ),
                 ),
               ),
