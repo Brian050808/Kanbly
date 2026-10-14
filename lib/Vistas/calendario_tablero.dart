@@ -17,8 +17,13 @@ class _CalendarioTableroState extends State<CalendarioTablero> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final textOnSurface = theme.colorScheme.onSurface;
+
     return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
+        backgroundColor: theme.appBarTheme.backgroundColor ?? theme.scaffoldBackgroundColor,
         title: ShaderMask(
           shaderCallback: (bounds) {
             return const LinearGradient(
@@ -69,6 +74,33 @@ class _CalendarioTableroState extends State<CalendarioTablero> {
                   lastDay: DateTime.utc(2040, 12, 31),
 
                   focusedDay: _controller.diaEnfocado,
+
+                  calendarStyle: CalendarStyle(
+                    defaultTextStyle: TextStyle(color: textOnSurface),
+                    weekendTextStyle: TextStyle(color: textOnSurface),
+                    outsideTextStyle: TextStyle(color: Colors.grey.shade600),
+                    selectedDecoration: const BoxDecoration(
+                      color: Color(0xFF52ABEB),
+                      shape: BoxShape.circle,
+                    ),
+                    todayDecoration: BoxDecoration(
+                      color: const Color(0xFF52ABEB).withOpacity(0.4),
+                      shape: BoxShape.circle,
+                    ),
+                    markerDecoration: const BoxDecoration(
+                      color: Color(0xFF63D0A1),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  headerStyle: HeaderStyle(
+                    titleTextStyle: TextStyle(
+                      color: textOnSurface,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    leftChevronIcon: Icon(Icons.chevron_left, color: textOnSurface),
+                    rightChevronIcon: Icon(Icons.chevron_right, color: textOnSurface),
+                  ),
 
                   selectedDayPredicate: (day) {
                     return isSameDay(_controller.diaSeleccionado, day);

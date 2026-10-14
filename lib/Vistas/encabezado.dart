@@ -9,8 +9,10 @@ class Encabezado extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return AppBar(
-      backgroundColor: const Color(0xFFFCFDFD),
+      backgroundColor: theme.appBarTheme.backgroundColor ?? theme.scaffoldBackgroundColor,
       elevation: 0,
       leading: IconButton(
         icon: const Icon(Icons.menu, color: Color(0xFF37B5F4)),
@@ -30,7 +32,7 @@ class Encabezado extends StatelessWidget implements PreferredSizeWidget {
         child: const Text(
           'Kanbly',
           style: TextStyle(
-            color: Colors.white, // El color aquí no importa, se aplica el degradado
+            color: Colors.white,
             fontWeight: FontWeight.bold,
             fontSize: 22,
             letterSpacing: 0.5,

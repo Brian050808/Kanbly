@@ -80,7 +80,7 @@ void main() {
       expect(borradorActualizado.titulo, equals('Nota rápida'));
     });
 
-    test('Simulación de conversión de BorradorNota a Tarea preservando prioridad', () {
+    test('Simulación de conversión de BorradorNota a Tarea preservando asignaciones múltiples y prioridad', () {
       final borrador = BorradorNota(
         id: 'draft_auto',
         usuarioId: 'creador_1',
@@ -88,7 +88,7 @@ void main() {
         titulo: 'Revisar Inventario',
         contenido: 'Verificar stock de insumos',
         fechaCreacion: DateTime.now(),
-        asignadoA: 'responsable_stock',
+        asignadosA: ['responsable_stock', 'asistente_logistica'],
         columnaDestino: 'Por Hacer',
         prioridad: 3, // Alta
       );
@@ -103,7 +103,7 @@ void main() {
         estadoNombre: borrador.columnaDestino,
         orden: 0,
         tableroId: borrador.tableroId,
-        asignadoA: borrador.asignadoA,
+        asignadosA: borrador.asignadosA,
         fechaCreacion: DateTime.now(),
         prioridad: borrador.prioridad,
         adjuntos: borrador.adjuntos,
@@ -112,10 +112,65 @@ void main() {
       );
 
       expect(nuevaTarea.titulo, equals('Revisar Inventario'));
+      expect(nuevaTarea.asignadosA, equals(['responsable_stock', 'asistente_logistica']));
       expect(nuevaTarea.asignadoA, equals('responsable_stock'));
       expect(nuevaTarea.estadoNombre, equals('Por Hacer'));
       expect(nuevaTarea.prioridad, equals(3));
       expect(nuevaTarea.creadaPor, equals('creador_1'));
+    });
+
+    test('Creación, vinculación y serialización de Nota Personal asociada a una Tarea', () {
+      final notaPersonal = BorradorNota(
+        id: 'nota_456',
+        usuarioId: 'integrante_maria',
+        tableroId: 'tablero_frontend',
+        titulo: 'Anotación de Arquitectura UI',
+        contenido: 'Revisar la integración de los componentes con Provider',
+        fechaCreacion: DateTime.now(),
+        tareaId: 'tarea_frontend_789',
+        tareaTitulo: 'Rediseño de Interfaz',
+        esNotaPersonal: true,
+      );
+
+      expect(notaPersonal.esNotaPersonal, isTrue);
+      expect(notaPersonal.tareaId, equals('tarea_frontend_789'));
+      expect(notaPersonal.tareaTitulo, equals('Rediseño de Interfaz'));
+
+      final map = notaPersonal.toMap();
+      expect(map['tareaId'], equals('tarea_frontend_789'));
+      expect(map['tareaTitulo'], equals('Rediseño de Interfaz'));
+      expect(map['esNotaPersonal'], isTrue);
+
+      final notaReconstruida = BorradorNota.fromMap('nota_456', map);
+      expect(notaReconstruida.tareaId, equals('tarea_frontend_789'));
+      expect(notaReconstruida.tareaTitulo, equals('Rediseño de Interfaz'));
+      expect(notaReconstruida.esNotaPersonal, isTrue);
+    });
+
+    test('BorradorNota.copyWith permite actualizar o desvincular una tarea (clearTareaId)', () {
+      final notaVinculada = BorradorNota(
+        id: 'nota_101',
+        usuarioId: 'user_x',
+        tableroId: 'tab_x',
+        titulo: 'Nota con tarea',
+        contenido: 'Contenido',
+        fechaCreacion: DateTime.now(),
+        tareaId: 'tarea_1',
+        tareaTitulo: 'Tarea Inicial',
+      );
+
+      // Actualizar vinculación a otra tarea
+      final notaRevinculada = notaVinculada.copyWith(
+        tareaId: 'tarea_2',
+        tareaTitulo: 'Tarea Nueva',
+      );
+      expect(notaRevinculada.tareaId, equals('tarea_2'));
+      expect(notaRevinculada.tareaTitulo, equals('Tarea Nueva'));
+
+      // Desvincular de la tarea
+      final notaDesvinculada = notaRevinculada.copyWith(clearTareaId: true);
+      expect(notaDesvinculada.tareaId, isNull);
+      expect(notaDesvinculada.tareaTitulo, isNull);
     });
   });
 }

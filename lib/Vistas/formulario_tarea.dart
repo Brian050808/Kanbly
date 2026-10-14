@@ -36,7 +36,7 @@ class _FormularioTareaState extends State<FormularioTarea> {
   late String _columnaSeleccionada;
   int _prioridadSeleccionada = 2; // 1 = Baja, 2 = Media, 3 = Alta
   DateTime? _fechaVencimiento;
-  String? _asignadoA;
+  List<String> _asignadosA = [];
   List<Usuario> _miembrosEquipo = [];
   final List<AdjuntoTarea> _adjuntosSeleccionados = [];
   bool _cargandoMiembros = false;
@@ -88,7 +88,9 @@ class _FormularioTareaState extends State<FormularioTarea> {
 
   @override
   Widget build(BuildContext context) {
-    const Color textoPrincipal = Color(0xFF1E293B);
+    final theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
+    final Color textoPrincipal = theme.colorScheme.onSurface;
     const Color azulCielo = Color(0xFF52ABEB);
     const Color verdeTurquesa = Color(0xFF63D0A1);
     const Color rojoAlta = Color(0xFFE53E3E);
@@ -96,9 +98,9 @@ class _FormularioTareaState extends State<FormularioTarea> {
     const Color verdeBaja = Color(0xFF38A169);
 
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom + 16,
@@ -152,7 +154,7 @@ class _FormularioTareaState extends State<FormularioTarea> {
                   contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                   filled: true,
-                  fillColor: const Color(0xFFF8FAFC),
+                  fillColor: isDark ? const Color(0xFF182030) : const Color(0xFFF8FAFC),
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
@@ -175,7 +177,7 @@ class _FormularioTareaState extends State<FormularioTarea> {
                   contentPadding: const EdgeInsets.all(12),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                   filled: true,
-                  fillColor: const Color(0xFFF8FAFC),
+                  fillColor: isDark ? const Color(0xFF182030) : const Color(0xFFF8FAFC),
                 ),
               ),
               const SizedBox(height: 14),
@@ -194,9 +196,9 @@ class _FormularioTareaState extends State<FormularioTarea> {
                         margin: const EdgeInsets.only(right: 8),
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: seleccionada ? azulCielo : const Color(0xFFF1F5F9),
+                          color: seleccionada ? azulCielo : (isDark ? const Color(0xFF182030) : const Color(0xFFF1F5F9)),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: seleccionada ? azulCielo : Colors.grey.shade300),
+                          border: Border.all(color: seleccionada ? azulCielo : (isDark ? const Color(0xFF2D3748) : Colors.grey.shade300)),
                         ),
                         child: Text(
                           col,
@@ -213,33 +215,75 @@ class _FormularioTareaState extends State<FormularioTarea> {
               ),
               const SizedBox(height: 14),
 
-              // ASIGNAR INTEGRANTE
+              // ASIGNAR INTEGRANTE(S)
               if (widget.tablero.esGrupal) ...[
-                Text('Asignar Integrante:', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: textoPrincipal)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Asignar Integrantes:', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: textoPrincipal)),
+                    Text(
+                      _asignadosA.isEmpty
+                          ? 'Sin asignar (0)'
+                          : '${_asignadosA.length} persona${_asignadosA.length > 1 ? "s" : ""}',
+                      style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: _asignadosA.isEmpty ? Colors.grey : azulCielo),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 6),
                 _cargandoMiembros
                     ? const LinearProgressIndicator()
-                    : DropdownButtonFormField<String?>(
-                        initialValue: _asignadoA,
-                        isExpanded: true,
-                        decoration: InputDecoration(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                          filled: true,
-                          fillColor: const Color(0xFFF8FAFC),
-                        ),
-                        items: [
-                          const DropdownMenuItem<String?>(
-                            value: null,
-                            child: Text('Sin asignar', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                    : _miembrosEquipo.isEmpty
+                        ? Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Text('No hay integrantes en este tablero.', style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+                          )
+                        : Wrap(
+                            spacing: 8,
+                            runSpacing: 6,
+                            children: _miembrosEquipo.map((miembro) {
+                              final estaSeleccionado = _asignadosA.contains(miembro.id);
+                              return FilterChip(
+                                avatar: CircleAvatar(
+                                  backgroundColor: estaSeleccionado ? Colors.white : (isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+                                  child: Text(
+                                    miembro.nombreCompleto.isNotEmpty ? miembro.nombreCompleto[0].toUpperCase() : '?',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: estaSeleccionado ? azulCielo : (isDark ? Colors.grey.shade300 : Colors.grey.shade700),
+                                    ),
+                                  ),
+                                ),
+                                label: Text(
+                                  miembro.nombreCompleto,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: estaSeleccionado ? FontWeight.bold : FontWeight.normal,
+                                    color: estaSeleccionado ? Colors.white : textoPrincipal,
+                                  ),
+                                ),
+                                selected: estaSeleccionado,
+                                selectedColor: azulCielo,
+                                checkmarkColor: Colors.white,
+                                backgroundColor: isDark ? const Color(0xFF182030) : const Color(0xFFF8FAFC),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  side: BorderSide(
+                                    color: estaSeleccionado ? azulCielo : (isDark ? const Color(0xFF2D3748) : Colors.grey.shade300),
+                                  ),
+                                ),
+                                onSelected: (bool selected) {
+                                  setState(() {
+                                    if (selected) {
+                                      _asignadosA.add(miembro.id);
+                                    } else {
+                                      _asignadosA.remove(miembro.id);
+                                    }
+                                  });
+                                },
+                              );
+                            }).toList(),
                           ),
-                          ..._miembrosEquipo.map((miembro) => DropdownMenuItem<String?>(
-                                value: miembro.id,
-                                child: Text(miembro.nombreCompleto, style: const TextStyle(fontSize: 12)),
-                              )),
-                        ],
-                        onChanged: (val) => setState(() => _asignadoA = val),
-                      ),
                 const SizedBox(height: 14),
               ],
 
@@ -252,12 +296,12 @@ class _FormularioTareaState extends State<FormularioTarea> {
                         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
-                      icon: const Icon(Icons.calendar_today_rounded, size: 15, color: textoPrincipal),
+                      icon: Icon(Icons.calendar_today_rounded, size: 15, color: textoPrincipal),
                       label: Text(
                         _fechaVencimiento == null
                             ? 'Fecha Entrega'
                             : '${_fechaVencimiento!.day}/${_fechaVencimiento!.month}/${_fechaVencimiento!.year}',
-                        style: const TextStyle(color: textoPrincipal, fontSize: 12, fontWeight: FontWeight.bold),
+                        style: TextStyle(color: textoPrincipal, fontSize: 12, fontWeight: FontWeight.bold),
                       ),
                       onPressed: () async {
                         final fecha = await showDatePicker(
@@ -330,7 +374,7 @@ class _FormularioTareaState extends State<FormularioTarea> {
                               adjunto.nombre,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textoPrincipal),
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textoPrincipal),
                             ),
                           ),
                           IconButton(
@@ -372,8 +416,11 @@ class _FormularioTareaState extends State<FormularioTarea> {
   }
 
   void _mostrarMenuAdjuntarArchivo() {
+    final theme = Theme.of(context);
+
     showModalBottomSheet(
       context: context,
+      backgroundColor: theme.cardColor,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) {
         return SafeArea(
@@ -383,7 +430,7 @@ class _FormularioTareaState extends State<FormularioTarea> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Adjuntar Archivo (Máx. 10MB):', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                Text('Adjuntar Archivo (Máx. 10MB):', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: theme.colorScheme.onSurface)),
                 const SizedBox(height: 12),
                 ListTile(
                   leading: const CircleAvatar(backgroundColor: Color(0xFFEBF8FF), child: Icon(Icons.image_rounded, color: Color(0xFF52ABEB))),
@@ -504,7 +551,7 @@ class _FormularioTareaState extends State<FormularioTarea> {
           child: Text(
             texto,
             style: TextStyle(
-              color: activo ? Colors.white : const Color(0xFF1E293B),
+              color: activo ? Colors.white : Theme.of(context).colorScheme.onSurface,
               fontWeight: FontWeight.bold,
               fontSize: 12,
             ),
@@ -572,7 +619,7 @@ class _FormularioTareaState extends State<FormularioTarea> {
           estadoNombre: _columnaSeleccionada,
           orden: 0,
           tableroId: widget.tablero.id,
-          asignadoA: _asignadoA,
+          asignadosA: _asignadosA,
           fechaCreacion: DateTime.now(),
           fechaVencimiento: _fechaVencimiento,
           prioridad: _prioridadSeleccionada,

@@ -8,6 +8,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../modelo/tarea.dart';
 import '../modelo/tablero.dart';
 import '../modelo/usuario.dart';
+import '../modelo/borrador_nota.dart';
 import '../servicios/firestore_service.dart';
 import '../servicios/storage_service.dart';
 import '../utilerias/formato_util.dart';
@@ -41,7 +42,7 @@ class _DetalleTareaWidgetState extends State<DetalleTareaWidget> {
   late String _columnaActual;
   late int _prioridadActual;
   DateTime? _fechaVencimiento;
-  String? _asignadoA;
+  List<String> _asignadosA = [];
   List<AdjuntoTarea> _adjuntosActuales = [];
   List<ComentarioTarea> _comentariosActuales = [];
   List<Usuario> _miembrosEquipo = [];
@@ -74,7 +75,7 @@ class _DetalleTareaWidgetState extends State<DetalleTareaWidget> {
 
     _prioridadActual = widget.tarea.prioridad;
     _fechaVencimiento = widget.tarea.fechaVencimiento;
-    _asignadoA = widget.tarea.asignadoA;
+    _asignadosA = List.from(widget.tarea.asignadosA);
     _adjuntosActuales = List.from(widget.tarea.adjuntos);
     _comentariosActuales = List.from(widget.tarea.comentarios);
 
@@ -111,7 +112,9 @@ class _DetalleTareaWidgetState extends State<DetalleTareaWidget> {
 
   @override
   Widget build(BuildContext context) {
-    const Color textoPrincipal = Color(0xFF1E293B);
+    final theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
+    final Color textoPrincipal = theme.colorScheme.onSurface;
     const Color azulCielo = Color(0xFF52ABEB);
     const Color verdeTurquesa = Color(0xFF63D0A1);
     const Color rojoAlta = Color(0xFFE53E3E);
@@ -122,10 +125,18 @@ class _DetalleTareaWidgetState extends State<DetalleTareaWidget> {
     final permisos = widget.tablero?.obtenerPermisosDeUsuario(uid) ?? PermisosMiembro.todos;
     final colorPrioridad = FormatoUtil.obtenerColorPorPrioridad(_prioridadActual);
 
-    Usuario? usuarioAsignado;
-    if (_asignadoA != null) {
-      final index = _miembrosEquipo.indexWhere((u) => u.id == _asignadoA);
-      if (index != -1) usuarioAsignado = _miembrosEquipo[index];
+    final usuariosAsignados = _miembrosEquipo.where((u) => _asignadosA.contains(u.id)).toList();
+    String textoAsignados = 'Sin asignar';
+    if (_asignadosA.isNotEmpty) {
+      if (usuariosAsignados.isNotEmpty) {
+        if (usuariosAsignados.length == 1) {
+          textoAsignados = usuariosAsignados.first.nombreCompleto;
+        } else {
+          textoAsignados = '${usuariosAsignados.length} asignados (${usuariosAsignados.map((u) => u.nombreCompleto.split(' ').first).join(', ')})';
+        }
+      } else {
+        textoAsignados = '${_asignadosA.length} asignado${_asignadosA.length > 1 ? "s" : ""}';
+      }
     }
 
     Widget contenidoInfo = SingleChildScrollView(
@@ -155,33 +166,72 @@ class _DetalleTareaWidgetState extends State<DetalleTareaWidget> {
               ),
             ),
 
-            // ASIGNAR INTEGRANTE EN MODO EDICIÓN
+            // ASIGNAR INTEGRANTES EN MODO EDICIÓN
             if (widget.tablero != null && widget.tablero!.esGrupal) ...[
-              const Text('Asignar a Integrante:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-              const SizedBox(height: 4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Asignar a Integrantes:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                  Text(
+                    _asignadosA.isEmpty
+                        ? 'Sin asignar (0)'
+                        : '${_asignadosA.length} persona${_asignadosA.length > 1 ? "s" : ""}',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: _asignadosA.isEmpty ? Colors.grey : azulCielo),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
               _cargandoMiembros
                   ? const LinearProgressIndicator()
-                  : DropdownButtonFormField<String?>(
-                      initialValue: _asignadoA,
-                      isExpanded: true,
-                      decoration: InputDecoration(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                        filled: true,
-                        fillColor: Colors.grey.shade50,
-                      ),
-                      items: [
-                        const DropdownMenuItem<String?>(
-                          value: null,
-                          child: Text('Sin asignar', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                  : _miembrosEquipo.isEmpty
+                      ? Text('No hay integrantes en este tablero.', style: TextStyle(fontSize: 12, color: Colors.grey.shade500))
+                      : Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          children: _miembrosEquipo.map((m) {
+                            final estaSeleccionado = _asignadosA.contains(m.id);
+                            return FilterChip(
+                              avatar: CircleAvatar(
+                                backgroundColor: estaSeleccionado ? Colors.white : (isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+                                child: Text(
+                                  m.nombreCompleto.isNotEmpty ? m.nombreCompleto[0].toUpperCase() : '?',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: estaSeleccionado ? azulCielo : (isDark ? Colors.grey.shade300 : Colors.grey.shade700),
+                                  ),
+                                ),
+                              ),
+                              label: Text(
+                                m.nombreCompleto,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: estaSeleccionado ? FontWeight.bold : FontWeight.normal,
+                                  color: estaSeleccionado ? Colors.white : textoPrincipal,
+                                ),
+                              ),
+                              selected: estaSeleccionado,
+                              selectedColor: azulCielo,
+                              checkmarkColor: Colors.white,
+                              backgroundColor: isDark ? const Color(0xFF182030) : Colors.grey.shade50,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                side: BorderSide(
+                                  color: estaSeleccionado ? azulCielo : (isDark ? const Color(0xFF2D3748) : Colors.grey.shade300),
+                                ),
+                              ),
+                              onSelected: (bool selected) {
+                                setState(() {
+                                  if (selected) {
+                                    _asignadosA.add(m.id);
+                                  } else {
+                                    _asignadosA.remove(m.id);
+                                  }
+                                });
+                              },
+                            );
+                          }).toList(),
                         ),
-                        ..._miembrosEquipo.map((m) => DropdownMenuItem<String?>(
-                              value: m.id,
-                              child: Text(m.nombreCompleto, style: const TextStyle(fontSize: 12)),
-                            )),
-                      ],
-                      onChanged: (val) => setState(() => _asignadoA = val),
-                    ),
               const SizedBox(height: 12),
             ],
 
@@ -194,12 +244,12 @@ class _DetalleTareaWidgetState extends State<DetalleTareaWidget> {
                       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    icon: const Icon(Icons.calendar_today_rounded, size: 15, color: textoPrincipal),
+                    icon: Icon(Icons.calendar_today_rounded, size: 15, color: textoPrincipal),
                     label: Text(
                       _fechaVencimiento == null
                           ? 'Asignar Entrega'
                           : '${_fechaVencimiento!.day}/${_fechaVencimiento!.month}/${_fechaVencimiento!.year}',
-                      style: const TextStyle(color: textoPrincipal, fontSize: 12, fontWeight: FontWeight.bold),
+                      style: TextStyle(color: textoPrincipal, fontSize: 12, fontWeight: FontWeight.bold),
                     ),
                     onPressed: () async {
                       final fecha = await showDatePicker(
@@ -252,7 +302,7 @@ class _DetalleTareaWidgetState extends State<DetalleTareaWidget> {
                 contentPadding: const EdgeInsets.all(12),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 filled: true,
-                fillColor: Colors.grey.shade50,
+                fillColor: isDark ? const Color(0xFF182030) : Colors.grey.shade50,
               ),
             )
           else
@@ -261,9 +311,9 @@ class _DetalleTareaWidgetState extends State<DetalleTareaWidget> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
+                      color: isDark ? const Color(0xFF182030) : Colors.grey.shade50,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade200),
+                      border: Border.all(color: isDark ? const Color(0xFF2D3748) : Colors.grey.shade200),
                     ),
                     child: Text(
                       _descController.text.trim(),
@@ -322,9 +372,9 @@ class _DetalleTareaWidgetState extends State<DetalleTareaWidget> {
                     margin: const EdgeInsets.only(bottom: 6),
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: theme.cardColor,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade300),
+                      border: Border.all(color: isDark ? const Color(0xFF2D3748) : Colors.grey.shade300),
                     ),
                     child: Row(
                       children: [
@@ -338,7 +388,7 @@ class _DetalleTareaWidgetState extends State<DetalleTareaWidget> {
                                 adjunto.nombre,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: textoPrincipal),
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: textoPrincipal),
                               ),
                               Text(
                                 '${adjunto.tipo.toUpperCase()} • ${adjunto.tamanoLegible}',
@@ -389,7 +439,7 @@ class _DetalleTareaWidgetState extends State<DetalleTareaWidget> {
     );
 
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Container(
         height: MediaQuery.of(context).size.height * 0.85,
         padding: EdgeInsets.only(
@@ -398,9 +448,9 @@ class _DetalleTareaWidgetState extends State<DetalleTareaWidget> {
           right: 18,
           top: 14,
         ),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -427,7 +477,7 @@ class _DetalleTareaWidgetState extends State<DetalleTareaWidget> {
                       items: _columnasDisponibles.map((col) {
                         return DropdownMenuItem(
                           value: col,
-                          child: Text(col, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textoPrincipal)),
+                          child: Text(col, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textoPrincipal)),
                         );
                       }).toList(),
                       onChanged: (_procesando || !permisos.moverTareas) ? null : _cambiarEstadoRapido,
@@ -514,34 +564,34 @@ class _DetalleTareaWidgetState extends State<DetalleTareaWidget> {
                   ),
                   const SizedBox(width: 8),
 
-                  // 2. Badge Integrante Asignado
+                  // 2. Badge Integrante(s) Asignado(s)
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
+                      color: _asignadosA.isNotEmpty ? azulCielo.withValues(alpha: 0.12) : (isDark ? const Color(0xFF182030) : Colors.grey.shade100),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade300),
+                      border: Border.all(color: _asignadosA.isNotEmpty ? azulCielo.withValues(alpha: 0.4) : (isDark ? const Color(0xFF2D3748) : Colors.grey.shade300)),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         CircleAvatar(
                           radius: 9,
-                          backgroundColor: _asignadoA != null ? azulCielo : Colors.grey.shade400,
+                          backgroundColor: _asignadosA.isNotEmpty ? azulCielo : (isDark ? Colors.grey.shade700 : Colors.grey.shade400),
                           child: Text(
-                            usuarioAsignado != null && usuarioAsignado.nombreCompleto.isNotEmpty
-                                ? usuarioAsignado.nombreCompleto[0].toUpperCase()
-                                : '?',
+                            usuariosAsignados.isNotEmpty
+                                ? usuariosAsignados.first.nombreCompleto[0].toUpperCase()
+                                : (_asignadosA.isNotEmpty ? '${_asignadosA.length}' : '?'),
                             style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
                           ),
                         ),
                         const SizedBox(width: 5),
                         Text(
-                          usuarioAsignado != null ? usuarioAsignado.nombreCompleto : 'Sin asignar',
+                          textoAsignados,
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
-                            color: usuarioAsignado != null ? textoPrincipal : Colors.grey.shade600,
+                            color: _asignadosA.isNotEmpty ? textoPrincipal : (isDark ? Colors.grey.shade400 : Colors.grey.shade600),
                           ),
                         ),
                       ],
@@ -554,10 +604,10 @@ class _DetalleTareaWidgetState extends State<DetalleTareaWidget> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
-                        color: _fechaVencimiento != null ? Colors.amber.shade50 : Colors.grey.shade100,
+                        color: _fechaVencimiento != null ? Colors.amber.shade900.withValues(alpha: 0.2) : (isDark ? const Color(0xFF182030) : Colors.grey.shade100),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: _fechaVencimiento != null ? Colors.amber.shade400 : Colors.grey.shade300,
+                          color: _fechaVencimiento != null ? Colors.amber.shade400 : (isDark ? const Color(0xFF2D3748) : Colors.grey.shade300),
                         ),
                       ),
                       child: Row(
@@ -566,7 +616,7 @@ class _DetalleTareaWidgetState extends State<DetalleTareaWidget> {
                           Icon(
                             Icons.calendar_today_rounded,
                             size: 12,
-                            color: _fechaVencimiento != null ? Colors.amber.shade900 : Colors.grey.shade600,
+                            color: _fechaVencimiento != null ? Colors.amber.shade400 : (isDark ? Colors.grey.shade400 : Colors.grey.shade600),
                           ),
                           const SizedBox(width: 4),
                           Text(
@@ -576,7 +626,7 @@ class _DetalleTareaWidgetState extends State<DetalleTareaWidget> {
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
-                              color: _fechaVencimiento != null ? Colors.amber.shade900 : Colors.grey.shade600,
+                              color: _fechaVencimiento != null ? Colors.amber.shade400 : (isDark ? Colors.grey.shade400 : Colors.grey.shade600),
                             ),
                           ),
                         ],
@@ -591,18 +641,18 @@ class _DetalleTareaWidgetState extends State<DetalleTareaWidget> {
             if (!_modoEdicion) ...[
               TabBar(
                 labelColor: azulCielo,
-                unselectedLabelColor: Colors.grey.shade600,
+                unselectedLabelColor: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
                 indicatorColor: azulCielo,
                 indicatorWeight: 2.5,
-                labelStyle: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13),
-                unselectedLabelStyle: GoogleFonts.inter(fontWeight: FontWeight.w500, fontSize: 13),
+                labelStyle: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12),
+                unselectedLabelStyle: GoogleFonts.inter(fontWeight: FontWeight.w500, fontSize: 12),
                 tabs: [
                   const Tab(
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.assignment_outlined, size: 16),
-                        SizedBox(width: 6),
+                        Icon(Icons.assignment_outlined, size: 15),
+                        SizedBox(width: 4),
                         Text('Información'),
                       ],
                     ),
@@ -611,9 +661,19 @@ class _DetalleTareaWidgetState extends State<DetalleTareaWidget> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.forum_outlined, size: 16),
-                        const SizedBox(width: 6),
+                        const Icon(Icons.forum_outlined, size: 15),
+                        const SizedBox(width: 4),
                         Text('Comentarios (${_comentariosActuales.length})'),
+                      ],
+                    ),
+                  ),
+                  const Tab(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.sticky_note_2_outlined, size: 15),
+                        SizedBox(width: 4),
+                        Text('Notas'),
                       ],
                     ),
                   ),
@@ -666,9 +726,9 @@ class _DetalleTareaWidgetState extends State<DetalleTareaWidget> {
                                           margin: const EdgeInsets.only(bottom: 8),
                                           padding: const EdgeInsets.all(10),
                                           decoration: BoxDecoration(
-                                            color: Colors.grey.shade50,
+                                            color: isDark ? const Color(0xFF182030) : Colors.grey.shade50,
                                             borderRadius: BorderRadius.circular(12),
-                                            border: Border.all(color: Colors.grey.shade200),
+                                            border: Border.all(color: isDark ? const Color(0xFF2D3748) : Colors.grey.shade200),
                                           ),
                                           child: Column(
                                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -688,7 +748,7 @@ class _DetalleTareaWidgetState extends State<DetalleTareaWidget> {
                                                     child: Column(
                                                       crossAxisAlignment: CrossAxisAlignment.start,
                                                       children: [
-                                                        Text(com.autorNombre, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: textoPrincipal)),
+                                                        Text(com.autorNombre, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: textoPrincipal)),
                                                         Text(fechaTexto, style: TextStyle(fontSize: 9, color: Colors.grey.shade500)),
                                                       ],
                                                     ),
@@ -701,7 +761,7 @@ class _DetalleTareaWidgetState extends State<DetalleTareaWidget> {
                                                 ],
                                               ),
                                               const SizedBox(height: 6),
-                                              Text(com.contenido, style: const TextStyle(fontSize: 12, color: textoPrincipal, height: 1.3)),
+                                              Text(com.contenido, style: TextStyle(fontSize: 12, color: textoPrincipal, height: 1.3)),
                                             ],
                                           ),
                                         );
@@ -714,9 +774,9 @@ class _DetalleTareaWidgetState extends State<DetalleTareaWidget> {
                               margin: const EdgeInsets.only(top: 8, bottom: 8),
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: isDark ? const Color(0xFF182030) : Colors.white,
                                 borderRadius: BorderRadius.circular(14),
-                                border: Border.all(color: Colors.grey.shade300),
+                                border: Border.all(color: isDark ? const Color(0xFF2D3748) : Colors.grey.shade300),
                               ),
                               child: Row(
                                 children: [
@@ -743,12 +803,234 @@ class _DetalleTareaWidgetState extends State<DetalleTareaWidget> {
                             ),
                           ],
                         ),
+
+                        // PESTAÑA 3: NOTAS PERSONALES VINCULADAS
+                        StreamBuilder<List<BorradorNota>>(
+                          stream: _firestoreService.escucharNotasDeTarea(widget.tarea.id),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState == ConnectionState.waiting) {
+                              return const Center(child: CircularProgressIndicator(color: azulCielo));
+                            }
+                            final notas = snapshot.data ?? [];
+
+                            return Column(
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        'Notas Personales (${notas.length})',
+                                        style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: textoPrincipal),
+                                      ),
+                                      ElevatedButton.icon(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: azulCielo,
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                          elevation: 0,
+                                        ),
+                                        icon: const Icon(Icons.add_rounded, size: 16, color: Colors.white),
+                                        label: const Text('Agregar Nota', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                                        onPressed: _crearNotaVinculadaDirecta,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Expanded(
+                                  child: notas.isEmpty
+                                      ? Center(
+                                          child: Column(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Icon(Icons.sticky_note_2_outlined, size: 42, color: Colors.grey.shade300),
+                                              const SizedBox(height: 8),
+                                              Text(
+                                                'No hay notas vinculadas a esta tarea',
+                                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey.shade600),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                'Los integrantes pueden agregar notas personales sobre el avance de esta tarea.',
+                                                textAlign: TextAlign.center,
+                                                style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                                              ),
+                                            ],
+                                          ),
+                                        )
+                                      : ListView.builder(
+                                          padding: const EdgeInsets.only(top: 6, bottom: 8),
+                                          itemCount: notas.length,
+                                          itemBuilder: (context, index) {
+                                            final nota = notas[index];
+                                            final colorVal = int.tryParse(nota.colorHex) ?? 0xFF52ABEB;
+                                            final colorBorder = Color(colorVal);
+
+                                            return Container(
+                                              margin: const EdgeInsets.only(bottom: 8),
+                                              padding: const EdgeInsets.all(12),
+                                              decoration: BoxDecoration(
+                                                color: theme.cardColor,
+                                                borderRadius: BorderRadius.circular(12),
+                                                border: Border.all(color: colorBorder.withValues(alpha: 0.5), width: 1.2),
+                                                boxShadow: [
+                                                  BoxShadow(
+                                                    color: Colors.black.withValues(alpha: 0.02),
+                                                    blurRadius: 4,
+                                                    offset: const Offset(0, 2),
+                                                  ),
+                                                ],
+                                              ),
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Row(
+                                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                    children: [
+                                                      Expanded(
+                                                        child: Text(
+                                                          nota.titulo,
+                                                          style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13, color: textoPrincipal),
+                                                        ),
+                                                      ),
+                                                      Row(
+                                                        children: [
+                                                          Text(
+                                                            FormatoUtil.formatearFechaHora(nota.fechaCreacion),
+                                                            style: TextStyle(fontSize: 9, color: Colors.grey.shade500),
+                                                          ),
+                                                          if (nota.usuarioId == uid)
+                                                            IconButton(
+                                                              icon: const Icon(Icons.delete_outline_rounded, size: 16, color: Colors.redAccent),
+                                                              onPressed: () => _firestoreService.eliminarBorradorNota(nota.id),
+                                                            ),
+                                                        ],
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  if (nota.contenido.isNotEmpty) ...[
+                                                    const SizedBox(height: 4),
+                                                    Text(
+                                                      nota.contenido,
+                                                      style: TextStyle(fontSize: 12, color: textoPrincipal, height: 1.3),
+                                                    ),
+                                                  ],
+                                                ],
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
                       ],
                     ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  void _crearNotaVinculadaDirecta() {
+    final tituloCtrl = TextEditingController();
+    final contenidoCtrl = TextEditingController();
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: theme.cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+            left: 20, right: 20, top: 18,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '📝 Crear Nota Personal Vinculada',
+                style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Vinculada a: "${widget.tarea.titulo}"',
+                style: const TextStyle(fontSize: 11, color: Color(0xFF52ABEB), fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: tituloCtrl,
+                decoration: InputDecoration(
+                  labelText: 'Título de la Nota *',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  filled: true,
+                  fillColor: isDark ? const Color(0xFF182030) : Colors.grey.shade50,
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: contenidoCtrl,
+                minLines: 3,
+                maxLines: 5,
+                decoration: InputDecoration(
+                  labelText: 'Contenido / Anotaciones',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  filled: true,
+                  fillColor: isDark ? const Color(0xFF182030) : Colors.grey.shade50,
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                height: 44,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF52ABEB),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  icon: const Icon(Icons.save_rounded, color: Colors.white, size: 18),
+                  label: const Text('Guardar Nota Vinculada', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  onPressed: () async {
+                    final t = tituloCtrl.text.trim();
+                    if (t.isEmpty) return;
+                    Navigator.pop(ctx);
+
+                    final nuevaNota = BorradorNota(
+                      id: FirebaseFirestore.instance.collection('borradores_notas').doc().id,
+                      usuarioId: uid,
+                      tableroId: widget.tarea.tableroId,
+                      titulo: t,
+                      contenido: contenidoCtrl.text.trim(),
+                      fechaCreacion: DateTime.now(),
+                      tareaId: widget.tarea.id,
+                      tareaTitulo: widget.tarea.titulo,
+                      esNotaPersonal: true,
+                    );
+
+                    await _firestoreService.crearBorradorNota(nuevaNota);
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Nota vinculada agregada'), backgroundColor: Color(0xFF63D0A1)),
+                      );
+                    }
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -943,7 +1225,7 @@ class _DetalleTareaWidgetState extends State<DetalleTareaWidget> {
           child: Text(
             texto,
             style: TextStyle(
-              color: activo ? Colors.white : const Color(0xFF1E293B),
+              color: activo ? Colors.white : Theme.of(context).colorScheme.onSurface,
               fontWeight: FontWeight.bold,
               fontSize: 12,
             ),
@@ -1035,7 +1317,7 @@ class _DetalleTareaWidgetState extends State<DetalleTareaWidget> {
         estadoNombre: _columnaActual,
         prioridad: _prioridadActual,
         fechaVencimiento: _fechaVencimiento,
-        asignadoA: _asignadoA,
+        asignadosA: _asignadosA,
         adjuntos: adjuntosSubidos,
         comentarios: _comentariosActuales,
       );

@@ -35,10 +35,9 @@ class _KanbanBoardWidgetState extends State<KanbanBoardWidget> {
   @override
   Widget build(BuildContext context) {
     // Colores oficiales adaptados de la paleta institucional de Kanbly
-    const Color fondoBlanco = Color(0xFFFCFDFD);
     const Color azulCielo = Color(0xFF52ABEB);
     const Color verdeTurquesa = Color(0xFF63D0A1);
-    const Color textoPrincipal = Color(0xFF1E293B);
+    final theme = Theme.of(context);
 
     return StreamBuilder<Tablero?>(
       stream: widget.tablero != null
@@ -62,7 +61,7 @@ class _KanbanBoardWidgetState extends State<KanbanBoardWidget> {
           },
           child: Scaffold(
             key: _scaffoldKey,
-            backgroundColor: fondoBlanco,
+            backgroundColor: theme.scaffoldBackgroundColor,
 
             // 1. APPBAR OFICIAL DEL EQUIPO
             appBar: Encabezado(
@@ -107,8 +106,8 @@ class _KanbanBoardWidgetState extends State<KanbanBoardWidget> {
                       Expanded(
                         child: Text(
                           nombreTablero,
-                          style: const TextStyle(
-                            color: textoPrincipal,
+                          style: TextStyle(
+                            color: theme.colorScheme.onSurface,
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
                           ),
@@ -167,7 +166,7 @@ class _KanbanBoardWidgetState extends State<KanbanBoardWidget> {
                         ),
                       // --- BOTÓN PARA CAMBIAR ESTRATEGIA DE ORDENAMIENTO ---
                       PopupMenuButton<String>(
-                        icon: const Icon(Icons.sort_rounded, color: Color(0xFF1E293B), size: 26),
+                        icon: Icon(Icons.sort_rounded, color: theme.colorScheme.onSurface, size: 26),
                         tooltip: 'Ordenar tareas por...',
                         onSelected: (nuevoCriterio) {
                           setState(() {
@@ -425,6 +424,7 @@ class _KanbanBoardWidgetState extends State<KanbanBoardWidget> {
       },
       builder: (context, candidateData, rejectedData) {
         final isHovered = candidateData.isNotEmpty;
+        final isDark = Theme.of(context).brightness == Brightness.dark;
         final double maxHeight = MediaQuery.of(context).size.height - 220;
 
         return Container(
@@ -437,10 +437,10 @@ class _KanbanBoardWidgetState extends State<KanbanBoardWidget> {
           decoration: BoxDecoration(
             color: isHovered
                 ? colorHeader.withOpacity(0.12)
-                : Colors.grey.shade100.withOpacity(0.3),
+                : (isDark ? const Color(0xFF182030) : Colors.grey.shade100.withOpacity(0.3)),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: isHovered ? colorHeader : Colors.grey.shade200,
+              color: isHovered ? colorHeader : (isDark ? const Color(0xFF2D3748) : Colors.grey.shade200),
               width: isHovered ? 2.0 : 1.0,
             ),
           ),
@@ -463,7 +463,7 @@ class _KanbanBoardWidgetState extends State<KanbanBoardWidget> {
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
                           border: Border.all(
-                            color: isHovered ? colorHeader : Colors.grey.shade300,
+                            color: isHovered ? colorHeader : (isDark ? const Color(0xFF2D3748) : Colors.grey.shade300),
                             style: BorderStyle.none,
                           ),
                           borderRadius: BorderRadius.circular(12),
@@ -514,7 +514,7 @@ class _KanbanBoardWidgetState extends State<KanbanBoardWidget> {
                                   showModalBottomSheet(
                                     context: context,
                                     isScrollControlled: true,
-                                    backgroundColor: Colors.white,
+                                    backgroundColor: Theme.of(context).cardColor,
                                     shape: const RoundedRectangleBorder(
                                       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
                                     ),
@@ -548,7 +548,7 @@ class _KanbanBoardWidgetState extends State<KanbanBoardWidget> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -773,6 +773,8 @@ class TaskCardWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
     // 1. Título y descripción con fallbacks seguros
     final String tituloDisplay = tarea.titulo.trim().isNotEmpty
         ? tarea.titulo.trim()
@@ -790,33 +792,50 @@ class TaskCardWidget extends StatelessWidget {
     // 3. Fecha de entrega
     final String fechaDisplay = FormatoUtil.formatearFechaCorta(tarea.fechaVencimiento);
 
-    // 4. Iniciales de asignación para tableros grupales
-    String inicialesAsignado = 'TA';
+    // 4. Iniciales e información de asignación para tableros grupales
+    String inicialesAsignado = '?';
     String nombreAsignado = 'Sin asignar';
     bool tieneAsignado = false;
 
-    if (tarea.asignadoA != null && tablero != null && tablero!.miembrosInfo.containsKey(tarea.asignadoA)) {
-      final info = tablero!.miembrosInfo[tarea.asignadoA];
-      if (info != null && info.rolKanban.trim().isNotEmpty) {
-        tieneAsignado = true;
-        nombreAsignado = info.rolKanban;
-        final partes = info.rolKanban.trim().split(' ').where((p) => p.isNotEmpty).toList();
-        if (partes.length >= 2) {
-          inicialesAsignado = '${partes[0][0]}${partes[1][0]}'.toUpperCase();
-        } else if (info.rolKanban.trim().length >= 2) {
-          inicialesAsignado = info.rolKanban.trim().substring(0, 2).toUpperCase();
+    if (tarea.asignadosA.isNotEmpty && tablero != null) {
+      tieneAsignado = true;
+      if (tarea.asignadosA.length == 1) {
+        final uid = tarea.asignadosA.first;
+        if (tablero!.miembrosInfo.containsKey(uid)) {
+          final info = tablero!.miembrosInfo[uid];
+          if (info != null && info.rolKanban.trim().isNotEmpty) {
+            nombreAsignado = info.rolKanban;
+            final partes = info.rolKanban.trim().split(' ').where((p) => p.isNotEmpty).toList();
+            if (partes.length >= 2) {
+              inicialesAsignado = '${partes[0][0]}${partes[1][0]}'.toUpperCase();
+            } else if (info.rolKanban.trim().length >= 2) {
+              inicialesAsignado = info.rolKanban.trim().substring(0, 2).toUpperCase();
+            } else {
+              inicialesAsignado = info.rolKanban.trim().substring(0, 1).toUpperCase();
+            }
+          } else {
+            nombreAsignado = '1 asignado';
+            inicialesAsignado = '1';
+          }
         } else {
-          inicialesAsignado = info.rolKanban.trim().substring(0, 1).toUpperCase();
+          nombreAsignado = '1 asignado';
+          inicialesAsignado = '1';
         }
+      } else {
+        nombreAsignado = '${tarea.asignadosA.length} asignados';
+        inicialesAsignado = '${tarea.asignadosA.length}';
       }
     }
 
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade300, width: 1.2),
+        border: Border.all(
+          color: isDark ? const Color(0xFF2D3748) : Colors.grey.shade300,
+          width: 1.2,
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.04),
@@ -881,8 +900,8 @@ class TaskCardWidget extends StatelessWidget {
                         tituloDisplay,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFF1E293B),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface,
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
                         ),
@@ -895,13 +914,17 @@ class TaskCardWidget extends StatelessWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: Colors.grey.shade600,
+                          color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
                           fontSize: 11,
                           height: 1.3,
                         ),
                       ),
                       const SizedBox(height: 10),
-                      Divider(height: 1, thickness: 1, color: Colors.grey.shade200),
+                      Divider(
+                        height: 1,
+                        thickness: 1,
+                        color: isDark ? const Color(0xFF2D3748) : Colors.grey.shade200,
+                      ),
                       const SizedBox(height: 8),
 
                       // FILA 4: Fecha E Integrante Asignado
@@ -911,12 +934,16 @@ class TaskCardWidget extends StatelessWidget {
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.access_time_rounded, color: Colors.grey.shade500, size: 13),
+                              Icon(
+                                Icons.access_time_rounded,
+                                color: isDark ? Colors.grey.shade400 : Colors.grey.shade500,
+                                size: 13,
+                              ),
                               const SizedBox(width: 4),
                               Text(
                                 fechaDisplay,
                                 style: TextStyle(
-                                  color: Colors.grey.shade700,
+                                  color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
                                   fontSize: 11,
                                   fontWeight: FontWeight.w500,
                                 ),
@@ -928,7 +955,9 @@ class TaskCardWidget extends StatelessWidget {
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                                 decoration: BoxDecoration(
-                                  color: tieneAsignado ? const Color(0xFF52ABEB).withOpacity(0.12) : Colors.grey.shade100,
+                                  color: tieneAsignado
+                                      ? const Color(0xFF52ABEB).withOpacity(0.18)
+                                      : (isDark ? const Color(0xFF182030) : Colors.grey.shade100),
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Row(
@@ -936,7 +965,9 @@ class TaskCardWidget extends StatelessWidget {
                                   children: [
                                     CircleAvatar(
                                       radius: 9,
-                                      backgroundColor: tieneAsignado ? const Color(0xFF52ABEB) : Colors.grey.shade400,
+                                      backgroundColor: tieneAsignado
+                                          ? const Color(0xFF52ABEB)
+                                          : (isDark ? Colors.grey.shade700 : Colors.grey.shade400),
                                       child: Text(
                                         inicialesAsignado,
                                         style: const TextStyle(
@@ -955,7 +986,9 @@ class TaskCardWidget extends StatelessWidget {
                                         style: TextStyle(
                                           fontSize: 9,
                                           fontWeight: FontWeight.bold,
-                                          color: tieneAsignado ? const Color(0xFF52ABEB) : Colors.grey.shade600,
+                                          color: tieneAsignado
+                                              ? const Color(0xFF52ABEB)
+                                              : (isDark ? Colors.grey.shade400 : Colors.grey.shade600),
                                         ),
                                       ),
                                     ),

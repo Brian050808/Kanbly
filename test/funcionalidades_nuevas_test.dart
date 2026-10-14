@@ -54,31 +54,61 @@ void main() {
       expect(colorBaja, equals(const Color(0xFF38A169))); // Verde
     });
 
-    test('3. Tareas en tableros de equipo soportan asignación de integrante', () {
-      final tarea = Tarea(
+    test('3. Tareas soportan asignación de 0, 1 o múltiples integrantes', () {
+      // 3a. Tarea sin asignar (0 integrantes)
+      final tareaSinAsignar = Tarea(
+        id: 't0',
+        titulo: 'Tarea sin asignar',
+        tableroId: 'b2',
+        fechaCreacion: DateTime.now(),
+      );
+      expect(tareaSinAsignar.asignadosA, isEmpty);
+      expect(tareaSinAsignar.asignadoA, isNull);
+
+      // 3b. Tarea con 1 integrante asignado
+      final tareaUnAsignado = Tarea(
         id: 't1',
         titulo: 'Diseño de la Arquitectura',
         tableroId: 'b2',
-        asignadoA: 'user_dev_1',
+        asignadosA: ['user_dev_1'],
         fechaCreacion: DateTime.now(),
         prioridad: 3,
         estadoNombre: 'En Desarrollo',
       );
 
-      expect(tarea.asignadoA, equals('user_dev_1'));
-      expect(tarea.estadoNombre, equals('En Desarrollo'));
-      expect(tarea.prioridad, equals(3));
+      expect(tareaUnAsignado.asignadosA, equals(['user_dev_1']));
+      expect(tareaUnAsignado.asignadoA, equals('user_dev_1'));
+      expect(tareaUnAsignado.estadoNombre, equals('En Desarrollo'));
 
-      final map = tarea.toMap();
-      expect(map['asignadoA'], equals('user_dev_1'));
-      expect(map['estado'], equals('En Desarrollo'));
+      final map1 = tareaUnAsignado.toMap();
+      expect(map1['asignadosA'], equals(['user_dev_1']));
+      expect(map1['asignadoA'], equals('user_dev_1'));
 
-      final tareaFromMap = Tarea.fromMap('t1', map);
-      expect(tareaFromMap.asignadoA, equals('user_dev_1'));
-      expect(tareaFromMap.estadoNombre, equals('En Desarrollo'));
+      final tareaFromMap1 = Tarea.fromMap('t1', map1);
+      expect(tareaFromMap1.asignadosA, equals(['user_dev_1']));
+      expect(tareaFromMap1.asignadoA, equals('user_dev_1'));
+
+      // 3c. Tarea con múltiples integrantes asignados (equipo)
+      final tareaMultiples = Tarea(
+        id: 't_multi',
+        titulo: 'Módulo Colaborativo',
+        tableroId: 'b2',
+        asignadosA: ['user_dev_1', 'user_dev_2', 'user_qa_1'],
+        fechaCreacion: DateTime.now(),
+      );
+
+      expect(tareaMultiples.asignadosA.length, equals(3));
+      expect(tareaMultiples.asignadosA, containsAll(['user_dev_1', 'user_dev_2', 'user_qa_1']));
+      expect(tareaMultiples.asignadoA, equals('user_dev_1'));
+
+      final mapMulti = tareaMultiples.toMap();
+      expect(mapMulti['asignadosA'], equals(['user_dev_1', 'user_dev_2', 'user_qa_1']));
+
+      final tareaFromMapMulti = Tarea.fromMap('t_multi', mapMulti);
+      expect(tareaFromMapMulti.asignadosA.length, equals(3));
     });
 
-    test('4. Copia de tarea con copyWith actualiza asignación y columna', () {
+    test('4. Copia de tarea con copyWith actualiza asignaciones múltiples y columna', () {
       final tareaOriginal = Tarea(
         id: 't2',
         titulo: 'Revisión de Código',
@@ -87,11 +117,12 @@ void main() {
       );
 
       final tareaActualizada = tareaOriginal.copyWith(
-        asignadoA: 'user_qa_1',
+        asignadosA: ['user_qa_1', 'user_lead_1'],
         estadoNombre: 'En Pruebas / QA',
         prioridad: 2,
       );
 
+      expect(tareaActualizada.asignadosA, equals(['user_qa_1', 'user_lead_1']));
       expect(tareaActualizada.asignadoA, equals('user_qa_1'));
       expect(tareaActualizada.estadoNombre, equals('En Pruebas / QA'));
       expect(tareaActualizada.prioridad, equals(2));

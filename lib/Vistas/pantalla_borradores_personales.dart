@@ -12,6 +12,7 @@ import '../servicios/firestore_service.dart';
 import '../servicios/storage_service.dart';
 import '../utilerias/formato_util.dart';
 import 'pantalla_visualizador_adjunto.dart';
+import 'detalle_tarea_widget.dart';
 
 class PantallaBorradoresPersonales extends StatefulWidget {
   final Tablero tablero;
@@ -85,184 +86,487 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
     }
   }
 
+  Future<void> _abrirDetalleTareaVinculada(String tareaId) async {
+    try {
+      final tarea = await _firestoreService.obtenerTarea(tareaId);
+      if (tarea != null && mounted) {
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (context) => DetalleTareaWidget(
+            tarea: tarea,
+            tablero: widget.tablero,
+          ),
+        );
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('La tarea vinculada no se encontró o fue eliminada.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al cargar la tarea vinculada: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
+    final Color textoPrincipal = theme.colorScheme.onSurface;
+    const Color azulCielo = Color(0xFF52ABEB);
+
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: theme.scaffoldBackgroundColor,
+        appBar: AppBar(
+          elevation: 0,
+          backgroundColor: Colors.transparent,
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back_ios_new_rounded, color: textoPrincipal),
+            onPressed: () => Navigator.pop(context),
+          ),
+          title: Text(
+            'Espacio Personal: ${widget.tablero.nombre}',
+            style: GoogleFonts.inter(
+              color: textoPrincipal,
+              fontWeight: FontWeight.bold,
+              fontSize: 17,
+            ),
+          ),
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(48),
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF182030) : Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: TabBar(
+                indicator: BoxDecoration(
+                  color: azulCielo,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                labelColor: Colors.white,
+                unselectedLabelColor: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+                labelStyle: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13),
+                unselectedLabelStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13),
+                tabs: const [
+                  Tab(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.sticky_note_2_rounded, size: 16),
+                        SizedBox(width: 6),
+                        Text('Notas Personales'),
+                      ],
+                    ),
+                  ),
+                  Tab(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.pending_actions_rounded, size: 16),
+                        SizedBox(width: 6),
+                        Text('Borradores Tareas'),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        body: StreamBuilder<List<BorradorNota>>(
+          stream: _firestoreService.escucharBorradoresNota(_currentUid, widget.tablero.id),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator(color: azulCielo));
+            }
+
+            if (snapshot.hasError) {
+              return Center(
+                child: Text(
+                  'Error al cargar elementos: ${snapshot.error}',
+                  style: const TextStyle(color: Colors.redAccent),
+                ),
+              );
+            }
+
+            final todosElementos = snapshot.data ?? [];
+
+            if (todosElementos.isNotEmpty) {
+              _verificarBorradoresProgramados(todosElementos);
+            }
+
+            final notasPersonales = todosElementos.where((b) => b.esNotaPersonal).toList();
+            final borradoresTareas = todosElementos.where((b) => !b.esNotaPersonal).toList();
+
+            return TabBarView(
+              children: [
+                // PESTAÑA 1: SECCIÓN DE NOTAS PERSONALES
+                _construirVistaNotasPersonales(notasPersonales),
+
+                // PESTAÑA 2: SECCIÓN DE BORRADORES DE TAREAS
+                _construirVistaBorradoresTareas(borradoresTareas),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  // --- VISTA DE NOTAS PERSONALES ---
+  Widget _construirVistaNotasPersonales(List<BorradorNota> notas) {
     const Color textoPrincipal = Color(0xFF1E293B);
     const Color azulCielo = Color(0xFF52ABEB);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: textoPrincipal),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          'Borradores y Notas',
-          style: GoogleFonts.inter(
-            color: textoPrincipal,
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add_circle_outline_rounded, color: azulCielo, size: 28),
-            tooltip: 'Crear Borrador',
-            onPressed: () => _abrirFormularioBorrador(),
-          ),
-        ],
-      ),
+      backgroundColor: Colors.transparent,
       body: Column(
         children: [
-          // BANNER INFORMATIVO DEL ESPACIO PERSONAL
+          // BANNER DE NOTAS
           Container(
             width: double.infinity,
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            padding: const EdgeInsets.all(16),
+            margin: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF52ABEB), Color(0xFF63D0A1)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF52ABEB).withValues(alpha: 0.25),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+              color: Colors.teal.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.teal.shade200),
             ),
-            child: Row(
+            child: const Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.lock_clock_outlined, color: Colors.white, size: 28),
-                ),
-                const SizedBox(width: 14),
+                Icon(Icons.sticky_note_2_rounded, color: Colors.teal, size: 20),
+                SizedBox(width: 10),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Espacio Personal: ${widget.tablero.nombre}',
-                        style: GoogleFonts.inter(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      const Text(
-                        'Asigna integrantes, prioridad y programa fechas de publicación automática.',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 11,
-                          height: 1.3,
-                        ),
-                      ),
-                    ],
+                  child: Text(
+                    'Notas Personales: Anotaciones privadas que puedes vincular opcionalmente a cualquier tarea del tablero.',
+                    style: TextStyle(fontSize: 11, color: Colors.teal, fontWeight: FontWeight.w600, height: 1.3),
                   ),
                 ),
               ],
             ),
           ),
 
-          // LISTA DE BORRADORES EN TIEMPO REAL DESDE FIRESTORE
           Expanded(
-            child: StreamBuilder<List<BorradorNota>>(
-              stream: _firestoreService.escucharBorradoresNota(_currentUid, widget.tablero.id),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator(color: azulCielo));
-                }
-
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Text(
-                      'Error al cargar borradores: ${snapshot.error}',
-                      style: const TextStyle(color: Colors.redAccent),
-                    ),
-                  );
-                }
-
-                final borradores = snapshot.data ?? [];
-
-                if (borradores.isNotEmpty) {
-                  _verificarBorradoresProgramados(borradores);
-                }
-
-                if (borradores.isEmpty) {
-                  return Center(
+            child: notas.isEmpty
+                ? Center(
                     child: Padding(
                       padding: const EdgeInsets.all(32),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.edit_note_rounded, size: 72, color: Colors.grey.shade300),
-                          const SizedBox(height: 16),
+                          Icon(Icons.sticky_note_2_outlined, size: 68, color: Colors.grey.shade300),
+                          const SizedBox(height: 14),
                           Text(
-                            'No tienes borradores en este tablero',
-                            style: GoogleFonts.inter(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: textoPrincipal,
-                            ),
+                            'No tienes notas personales aún',
+                            style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.bold, color: textoPrincipal),
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 6),
                           Text(
-                            'Usa el botón "+" para anotar ideas rápidas, asignar integrantes, definir prioridad o programar tareas.',
+                            'Crea tus notas personales y conéctalas con tareas del tablero para llevar un mejor control de tus ideas.',
                             textAlign: TextAlign.center,
                             style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                           ),
-                          const SizedBox(height: 20),
+                          const SizedBox(height: 18),
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.teal,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                            ),
+                            icon: const Icon(Icons.add_rounded, color: Colors.white),
+                            label: const Text('Crear mi primera nota', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            onPressed: () => _abrirFormularioNotaPersonal(),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: notas.length,
+                    itemBuilder: (context, index) {
+                      final nota = notas[index];
+                      return _tarjetaNotaPersonal(nota);
+                    },
+                  ),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: Colors.teal,
+        icon: const Icon(Icons.add_rounded, color: Colors.white),
+        label: const Text('Nueva Nota Personal', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        onPressed: () => _abrirFormularioNotaPersonal(),
+      ),
+    );
+  }
+
+  // --- VISTA DE BORRADORES DE TAREAS ---
+  Widget _construirVistaBorradoresTareas(List<BorradorNota> borradores) {
+    const Color textoPrincipal = Color(0xFF1E293B);
+    const Color azulCielo = Color(0xFF52ABEB);
+
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: Column(
+        children: [
+          // BANNER DE BORRADORES DE TAREAS
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: azulCielo.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: azulCielo.withValues(alpha: 0.3)),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.pending_actions_rounded, color: azulCielo, size: 20),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Borradores de Tareas: Diseña tareas en avance, asigna integrantes y programa la publicación automatizada.',
+                    style: TextStyle(fontSize: 11, color: azulCielo, fontWeight: FontWeight.w600, height: 1.3),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          Expanded(
+            child: borradores.isEmpty
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.pending_actions_rounded, size: 68, color: Colors.grey.shade300),
+                          const SizedBox(height: 14),
+                          Text(
+                            'No tienes borradores de tareas programadas',
+                            style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.bold, color: textoPrincipal),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Crea borradores de tareas previas para publicarlas oficialmente o programar su salida en el tablero.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                          ),
+                          const SizedBox(height: 18),
                           ElevatedButton.icon(
                             style: ElevatedButton.styleFrom(
                               backgroundColor: azulCielo,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                             ),
                             icon: const Icon(Icons.add_rounded, color: Colors.white),
-                            label: const Text('Crear mi primer borrador', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            label: const Text('Crear borrador de tarea', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                             onPressed: () => _abrirFormularioBorrador(),
                           ),
                         ],
                       ),
                     ),
-                  );
-                }
-
-                return ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: borradores.length,
-                  itemBuilder: (context, index) {
-                    final borrador = borradores[index];
-                    return _tarjetaBorrador(borrador);
-                  },
-                );
-              },
-            ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: borradores.length,
+                    itemBuilder: (context, index) {
+                      final borrador = borradores[index];
+                      return _tarjetaBorradorTarea(borrador);
+                    },
+                  ),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: const Color(0xFF63D0A1),
-        icon: const Icon(Icons.note_add_rounded, color: Colors.white),
-        label: const Text('Nuevo Borrador', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        backgroundColor: azulCielo,
+        icon: const Icon(Icons.add_rounded, color: Colors.white),
+        label: const Text('Nuevo Borrador Tarea', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         onPressed: () => _abrirFormularioBorrador(),
       ),
     );
   }
 
-  Widget _tarjetaBorrador(BorradorNota borrador) {
+  // --- TARJETA EXCLUSIVA PARA NOTA PERSONAL ---
+  Widget _tarjetaNotaPersonal(BorradorNota nota) {
+    const Color textoPrincipal = Color(0xFF1E293B);
+    final colorVal = int.tryParse(nota.colorHex) ?? 0xFF009688;
+    final colorEtiqueta = Color(colorVal);
+
+    final tieneTareaVinculada = nota.tareaId != null && nota.tareaId!.isNotEmpty;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colorEtiqueta.withValues(alpha: 0.4), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ENCABEZADO
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: colorEtiqueta.withValues(alpha: 0.12),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.sticky_note_2_rounded, size: 16, color: colorEtiqueta),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    nota.titulo,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14, color: textoPrincipal),
+                  ),
+                ),
+                Text(
+                  FormatoUtil.formatearFechaHora(nota.fechaCreacion),
+                  style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                ),
+              ],
+            ),
+          ),
+
+          // BADGE DE TAREA VINCULADA
+          if (tieneTareaVinculada)
+            Padding(
+              padding: const EdgeInsets.only(left: 14, right: 14, top: 10),
+              child: GestureDetector(
+                onTap: () => _abrirDetalleTareaVinculada(nota.tareaId!),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF107C41).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFF107C41).withValues(alpha: 0.5)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.push_pin_rounded, size: 12, color: Color(0xFF107C41)),
+                      const SizedBox(width: 5),
+                      Flexible(
+                        child: Text(
+                          'Vinculada a: ${nota.tareaTitulo ?? "Ver Tarea"}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF107C41)),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.arrow_forward_ios_rounded, size: 10, color: Color(0xFF107C41)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+          // CONTENIDO DE LA NOTA
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: Text(
+              nota.contenido.isNotEmpty ? nota.contenido : 'Sin detalles anotados.',
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                color: nota.contenido.isNotEmpty ? textoPrincipal : Colors.grey.shade500,
+                fontStyle: nota.contenido.isNotEmpty ? FontStyle.normal : FontStyle.italic,
+              ),
+            ),
+          ),
+
+          // ADJUNTOS
+          if (nota.adjuntos.isNotEmpty) ...[
+            const Divider(height: 1, thickness: 1),
+            Padding(
+              padding: const EdgeInsets.all(10),
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: nota.adjuntos.map((adj) {
+                  return GestureDetector(
+                    onTap: () => PantallaVisualizadorAdjunto.abrir(context, adj),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _obtenerIconoTipoAdjunto(adj.tipo, adj.nombre),
+                          const SizedBox(width: 4),
+                          Text(adj.nombre, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ],
+
+          const Divider(height: 1, thickness: 1),
+
+          // BARRA DE ACCIONES NOTA: EDITAR Y ELIMINAR
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.edit_outlined, size: 18, color: Colors.teal),
+                      tooltip: 'Editar Nota',
+                      onPressed: () => _abrirFormularioNotaPersonal(nota: nota),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Colors.redAccent),
+                      tooltip: 'Eliminar Nota',
+                      onPressed: () => _confirmarEliminacion(nota),
+                    ),
+                  ],
+                ),
+                TextButton.icon(
+                  onPressed: () => _mostrarModalPublicarTarea(nota),
+                  icon: const Icon(Icons.rocket_launch_rounded, size: 14, color: Colors.teal),
+                  label: const Text('Convertir a Tarea', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.teal)),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- TARJETA EXCLUSIVA PARA BORRADOR DE TAREA ---
+  Widget _tarjetaBorradorTarea(BorradorNota borrador) {
     const Color textoPrincipal = Color(0xFF1E293B);
     const Color azulCielo = Color(0xFF52ABEB);
     final colorVal = int.tryParse(borrador.colorHex) ?? 0xFF52ABEB;
@@ -270,10 +574,18 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
 
     final colorPrioridad = FormatoUtil.obtenerColorPorPrioridad(borrador.prioridad);
 
-    Usuario? usuarioAsignado;
-    if (borrador.asignadoA != null) {
-      final idx = _miembrosEquipo.indexWhere((m) => m.id == borrador.asignadoA);
-      if (idx != -1) usuarioAsignado = _miembrosEquipo[idx];
+    final usuariosAsignadosBorrador = _miembrosEquipo.where((m) => borrador.asignadosA.contains(m.id)).toList();
+    String textoAsignacion = 'Sin asignar';
+    if (borrador.asignadosA.isNotEmpty) {
+      if (usuariosAsignadosBorrador.isNotEmpty) {
+        if (usuariosAsignadosBorrador.length == 1) {
+          textoAsignacion = 'Asignado: ${usuariosAsignadosBorrador.first.nombreCompleto}';
+        } else {
+          textoAsignacion = '${usuariosAsignadosBorrador.length} asignados (${usuariosAsignadosBorrador.map((m) => m.nombreCompleto.split(' ').first).join(', ')})';
+        }
+      } else {
+        textoAsignacion = '${borrador.asignadosA.length} asignado${borrador.asignadosA.length > 1 ? "s" : ""}';
+      }
     }
 
     return Container(
@@ -293,7 +605,7 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ENCABEZADO DE LA TARJETA
+          // ENCABEZADO
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
@@ -302,22 +614,14 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
             ),
             child: Row(
               children: [
-                Container(
-                  width: 10,
-                  height: 10,
-                  decoration: BoxDecoration(color: colorEtiqueta, shape: BoxShape.circle),
-                ),
+                Container(width: 10, height: 10, decoration: BoxDecoration(color: colorEtiqueta, shape: BoxShape.circle)),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     borrador.titulo,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.inter(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                      color: textoPrincipal,
-                    ),
+                    style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 15, color: textoPrincipal),
                   ),
                 ),
                 Text(
@@ -328,7 +632,7 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
             ),
           ),
 
-          // BADGES COMPACTOS: PRIORIDAD, ASIGNADO Y PUBLICACIÓN PROGRAMADA
+          // BADGES COMPACTOS DE TAREA: PRIORIDAD, ASIGNADO Y PROGRAMADO
           Padding(
             padding: const EdgeInsets.only(left: 16, right: 16, top: 10),
             child: Wrap(
@@ -357,7 +661,7 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
                 ),
 
                 // BADGE ASIGNADO
-                if (usuarioAsignado != null)
+                if (borrador.asignadosA.isNotEmpty)
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
@@ -371,7 +675,7 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
                         const Icon(Icons.person_rounded, size: 12, color: azulCielo),
                         const SizedBox(width: 4),
                         Text(
-                          'Asignado: ${usuarioAsignado.nombreCompleto}',
+                          textoAsignacion,
                           style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: azulCielo),
                         ),
                       ],
@@ -403,11 +707,11 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
             ),
           ),
 
-          // CUERPO RENDERIZADO DEL CONTENIDO DE LA NOTA
+          // DESCRIPCIÓN
           Padding(
             padding: const EdgeInsets.all(16),
             child: Text(
-              borrador.contenido.isNotEmpty ? borrador.contenido : 'Sin notas detalladas.',
+              borrador.contenido.isNotEmpty ? borrador.contenido : 'Sin descripción detallada.',
               style: GoogleFonts.inter(
                 fontSize: 13,
                 color: borrador.contenido.isNotEmpty ? textoPrincipal : Colors.grey.shade500,
@@ -416,66 +720,42 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
             ),
           ),
 
-          // ARCHIVOS ADJUNTOS EN EL BORRADOR SI EXISTEN
+          // ADJUNTOS
           if (borrador.adjuntos.isNotEmpty) ...[
             const Divider(height: 1, thickness: 1),
             Padding(
               padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.attach_file_rounded, size: 14, color: Color(0xFF52ABEB)),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Archivos Adjuntos (${borrador.adjuntos.length}):',
-                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textoPrincipal),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: borrador.adjuntos.map((adj) {
+                  return GestureDetector(
+                    onTap: () => PantallaVisualizadorAdjunto.abrir(context, adj),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey.shade300),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: borrador.adjuntos.map((adj) {
-                      return GestureDetector(
-                        onTap: () => PantallaVisualizadorAdjunto.abrir(context, adj),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF1F5F9),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.grey.shade300),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              _obtenerIconoTipoAdjunto(adj.tipo, adj.nombre),
-                              const SizedBox(width: 6),
-                              ConstrainedBox(
-                                constraints: const BoxConstraints(maxWidth: 140),
-                                child: Text(
-                                  adj.nombre,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: textoPrincipal),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ],
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _obtenerIconoTipoAdjunto(adj.tipo, adj.nombre),
+                          const SizedBox(width: 6),
+                          Text(adj.nombre, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
               ),
             ),
           ],
 
           const Divider(height: 1, thickness: 1),
 
-          // BARRA DE ACCIONES: EDITAR, ELIMINAR Y PUBLICAR
+          // BARRA DE ACCIONES BORRADOR TAREA: EDITAR, ELIMINAR Y PUBLICAR
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             child: Row(
@@ -503,10 +783,7 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
                     elevation: 0,
                   ),
                   icon: const Icon(Icons.rocket_launch_rounded, size: 16, color: Colors.white),
-                  label: const Text(
-                    'Publicar Tarea',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
-                  ),
+                  label: const Text('Publicar Tarea', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
                   onPressed: () => _mostrarModalPublicarTarea(borrador),
                 ),
               ],
@@ -517,13 +794,344 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
     );
   }
 
-  // DIÁLOGO / MODAL REDISEÑADO Y MODERNO PARA CREAR O EDITAR UN BORRADOR
+  // =========================================================================
+  // FORMULARIO INDEPENDIENTE 1: FORMULARIO EXCLUSIVO PARA NOTAS PERSONALES
+  // =========================================================================
+  void _abrirFormularioNotaPersonal({BorradorNota? nota, Tarea? tareaPreseleccionada}) async {
+    final esEdicion = nota != null;
+    final tituloController = TextEditingController(text: nota?.titulo ?? '');
+    final contenidoController = TextEditingController(text: nota?.contenido ?? '');
+    String colorHexSeleccionado = nota?.colorHex ?? '0xFF009688';
+
+    String? tareaIdVinculada = nota?.tareaId ?? tareaPreseleccionada?.id;
+    String? tareaTituloVinculada = nota?.tareaTitulo ?? tareaPreseleccionada?.titulo;
+
+    List<AdjuntoTarea> adjuntosTemporales = List.from(nota?.adjuntos ?? []);
+    bool guardandoNota = false;
+
+    // Cargar tareas del tablero para el selector desplegable
+    List<Tarea> tareasTablero = [];
+    try {
+      tareasTablero = await _firestoreService.obtenerTareasDeTablero(widget.tablero.id);
+    } catch (_) {}
+
+    if (!mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+                left: 20, right: 20, top: 18,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ENCABEZADO FORMULARIO DE NOTA
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.sticky_note_2_rounded, color: Colors.teal, size: 22),
+                            const SizedBox(width: 8),
+                            Text(
+                              esEdicion ? 'Editar Nota Personal' : 'Nueva Nota Personal',
+                              style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B)),
+                            ),
+                          ],
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded, color: Colors.grey),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+
+                    // CAMPO: TÍTULO DE LA NOTA
+                    TextFormField(
+                      controller: tituloController,
+                      style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600, color: const Color(0xFF1E293B)),
+                      decoration: InputDecoration(
+                        labelText: 'Título de la Nota *',
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                        filled: true,
+                        fillColor: const Color(0xFFF8FAFC),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // CAMPO: CONTENIDO / DETALLES DE LA NOTA
+                    TextFormField(
+                      controller: contenidoController,
+                      minLines: 3,
+                      maxLines: 5,
+                      style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF1E293B), height: 1.4),
+                      decoration: InputDecoration(
+                        labelText: 'Anotaciones y Detalles (Opcional)',
+                        contentPadding: const EdgeInsets.all(12),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                        filled: true,
+                        fillColor: const Color(0xFFF8FAFC),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // SELECTOR DE TAREA VINCULADA DEL TABLERO
+                    Text('Vincular a una Tarea del Tablero (Opcional):', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B))),
+                    const SizedBox(height: 6),
+                    DropdownButtonFormField<String?>(
+                      value: tareasTablero.any((t) => t.id == tareaIdVinculada) ? tareaIdVinculada : null,
+                      isExpanded: true,
+                      decoration: InputDecoration(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        filled: true,
+                        fillColor: const Color(0xFFF8FAFC),
+                      ),
+                      hint: const Text('-- Ninguna (Nota Suelta) --', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                      items: [
+                        const DropdownMenuItem<String?>(
+                          value: null,
+                          child: Text('-- Ninguna (Nota Suelta) --', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                        ),
+                        ...tareasTablero.map((t) {
+                          return DropdownMenuItem<String?>(
+                            value: t.id,
+                            child: Text(
+                              '📌 ${t.titulo} (${t.estadoNombre})',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                            ),
+                          );
+                        }),
+                      ],
+                      onChanged: (val) {
+                        setModalState(() {
+                          tareaIdVinculada = val;
+                          if (val != null) {
+                            final tEncontrada = tareasTablero.firstWhere((element) => element.id == val);
+                            tareaTituloVinculada = tEncontrada.titulo;
+                          } else {
+                            tareaTituloVinculada = null;
+                          }
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 14),
+
+                    // ARCHIVOS ADJUNTOS EN LA NOTA
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Archivos Adjuntos (${adjuntosTemporales.length}):',
+                          style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B)),
+                        ),
+                        TextButton.icon(
+                          onPressed: () => _mostrarMenuAdjuntarEnModal(setModalState, adjuntosTemporales),
+                          icon: const Icon(Icons.attach_file_rounded, size: 16, color: Colors.teal),
+                          label: const Text('Adjuntar', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.teal)),
+                        ),
+                      ],
+                    ),
+                    if (adjuntosTemporales.isNotEmpty)
+                      Column(
+                        children: adjuntosTemporales.asMap().entries.map((entry) {
+                          final idx = entry.key;
+                          final adj = entry.value;
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 6),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.grey.shade300),
+                            ),
+                            child: Row(
+                              children: [
+                                _obtenerIconoTipoAdjunto(adj.tipo, adj.nombre),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    adj.nombre,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.close_rounded, size: 16, color: Colors.redAccent),
+                                  onPressed: () => setModalState(() => adjuntosTemporales.removeAt(idx)),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    const SizedBox(height: 14),
+
+                    // COLOR DE LA NOTA
+                    Text('Color de la Nota:', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B))),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: _coloresEtiqueta.map((c) {
+                        final hex = c['hex'] as String;
+                        final color = c['color'] as Color;
+                        final activo = colorHexSeleccionado == hex;
+                        return GestureDetector(
+                          onTap: () => setModalState(() => colorHexSeleccionado = hex),
+                          child: Container(
+                            margin: const EdgeInsets.only(right: 10),
+                            width: 30,
+                            height: 30,
+                            decoration: BoxDecoration(
+                              color: color,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: activo ? Colors.black : Colors.transparent,
+                                width: 2.5,
+                              ),
+                            ),
+                            child: activo ? const Icon(Icons.check, size: 16, color: Colors.white) : null,
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // BOTÓN GUARDAR NOTA PERSONAL
+                    SizedBox(
+                      width: double.infinity,
+                      height: 46,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.teal,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          elevation: 0,
+                        ),
+                        icon: guardandoNota
+                            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                            : const Icon(Icons.save_rounded, color: Colors.white, size: 18),
+                        label: Text(
+                          guardandoNota ? 'Guardando...' : (esEdicion ? 'Guardar Cambios' : 'Guardar Nota Personal'),
+                          style: GoogleFonts.inter(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+                        ),
+                        onPressed: guardandoNota
+                            ? null
+                            : () async {
+                                final titulo = tituloController.text.trim();
+                                if (titulo.isEmpty) return;
+
+                                setModalState(() => guardandoNota = true);
+
+                                try {
+                                  final storageService = StorageService();
+                                  List<AdjuntoTarea> adjuntosSubidos = [];
+
+                                  final borradorIdFinal = esEdicion
+                                      ? nota.id
+                                      : FirebaseFirestore.instance.collection('borradores_notas').doc().id;
+
+                                  for (final adj in adjuntosTemporales) {
+                                    if (adj.url.isNotEmpty && !adj.url.startsWith('http')) {
+                                      final urlRemota = await storageService.subirAdjuntoTarea(
+                                        filePath: adj.url,
+                                        nombreArchivo: adj.nombre,
+                                        tareaId: 'note_$borradorIdFinal',
+                                      );
+                                      adjuntosSubidos.add(AdjuntoTarea(
+                                        id: adj.id,
+                                        nombre: adj.nombre,
+                                        url: urlRemota,
+                                        tipo: adj.tipo,
+                                        tamanoBytes: adj.tamanoBytes,
+                                        fechaAdjunto: adj.fechaAdjunto,
+                                      ));
+                                    } else {
+                                      adjuntosSubidos.add(adj);
+                                    }
+                                  }
+
+                                  if (esEdicion) {
+                                    final notaActualizada = nota.copyWith(
+                                      titulo: titulo,
+                                      contenido: contenidoController.text.trim(),
+                                      colorHex: colorHexSeleccionado,
+                                      adjuntos: adjuntosSubidos,
+                                      fechaActualizacion: DateTime.now(),
+                                      tareaId: tareaIdVinculada,
+                                      clearTareaId: tareaIdVinculada == null,
+                                      tareaTitulo: tareaTituloVinculada,
+                                      esNotaPersonal: true,
+                                    );
+                                    await _firestoreService.actualizarBorradorNota(notaActualizada);
+                                  } else {
+                                    final nuevaNota = BorradorNota(
+                                      id: borradorIdFinal,
+                                      usuarioId: _currentUid,
+                                      tableroId: widget.tablero.id,
+                                      titulo: titulo,
+                                      contenido: contenidoController.text.trim(),
+                                      fechaCreacion: DateTime.now(),
+                                      colorHex: colorHexSeleccionado,
+                                      adjuntos: adjuntosSubidos,
+                                      tareaId: tareaIdVinculada,
+                                      tareaTitulo: tareaTituloVinculada,
+                                      esNotaPersonal: true,
+                                    );
+                                    await _firestoreService.crearBorradorNota(nuevaNota);
+                                  }
+
+                                  if (context.mounted) {
+                                    Navigator.pop(context);
+                                  }
+                                } catch (e) {
+                                  setModalState(() => guardandoNota = false);
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Error al guardar nota: $e')),
+                                    );
+                                  }
+                                }
+                              },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // =========================================================================
+  // FORMULARIO INDEPENDIENTE 2: FORMULARIO EXCLUSIVO PARA BORRADORES DE TAREAS
+  // =========================================================================
   void _abrirFormularioBorrador({BorradorNota? borrador}) {
     final esEdicion = borrador != null;
     final tituloController = TextEditingController(text: borrador?.titulo ?? '');
     final contenidoController = TextEditingController(text: borrador?.contenido ?? '');
     String colorHexSeleccionado = borrador?.colorHex ?? '0xFF52ABEB';
-    String? asignadoA = borrador?.asignadoA;
+    List<String> asignadosA = List.from(borrador?.asignadosA ?? []);
     DateTime? fechaProgramada = borrador?.fechaPublicacionProgramada;
     String columnaDestino = borrador?.columnaDestino ?? (widget.tablero.columnas.isNotEmpty ? widget.tablero.columnas.first : 'Pendiente');
     int prioridadSeleccionada = borrador?.prioridad ?? 2;
@@ -562,9 +1170,15 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          esEdicion ? 'Editar Borrador' : 'Nuevo Borrador / Nota',
-                          style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B)),
+                        Row(
+                          children: [
+                            const Icon(Icons.pending_actions_rounded, color: Color(0xFF52ABEB), size: 22),
+                            const SizedBox(width: 8),
+                            Text(
+                              esEdicion ? 'Editar Borrador de Tarea' : 'Nuevo Borrador de Tarea',
+                              style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B)),
+                            ),
+                          ],
                         ),
                         IconButton(
                           icon: const Icon(Icons.close_rounded, color: Colors.grey),
@@ -572,14 +1186,14 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
 
-                    // CAMPO: TÍTULO
+                    // CAMPO: TÍTULO DEL BORRADOR
                     TextFormField(
                       controller: tituloController,
                       style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600, color: const Color(0xFF1E293B)),
                       decoration: InputDecoration(
-                        labelText: 'Título del Borrador *',
+                        labelText: 'Título de la Tarea en Borrador *',
                         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                         filled: true,
@@ -588,14 +1202,14 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
                     ),
                     const SizedBox(height: 12),
 
-                    // CAMPO CONTENIDO
+                    // CAMPO: DESCRIPCIÓN
                     TextFormField(
                       controller: contenidoController,
                       minLines: 3,
                       maxLines: 5,
                       style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF1E293B), height: 1.4),
                       decoration: InputDecoration(
-                        labelText: 'Contenido y Detalles (Opcional)',
+                        labelText: 'Descripción y Detalles del Borrador (Opcional)',
                         contentPadding: const EdgeInsets.all(12),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                         filled: true,
@@ -604,37 +1218,76 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
                     ),
                     const SizedBox(height: 14),
 
-                    // INTEGRANTE ASIGNADO EN TABLEROS DE EQUIPO
+                    // INTEGRANTES ASIGNADOS EN TABLEROS DE EQUIPO
                     if (widget.tablero.esGrupal) ...[
-                      Text('Asignar Integrante:', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B))),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Asignar Integrantes:', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B))),
+                          Text(
+                            asignadosA.isEmpty
+                                ? 'Sin asignar (0)'
+                                : '${asignadosA.length} persona${asignadosA.length > 1 ? "s" : ""}',
+                            style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: asignadosA.isEmpty ? Colors.grey : const Color(0xFF52ABEB)),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 6),
                       _cargandoMiembros
                           ? const LinearProgressIndicator()
-                          : DropdownButtonFormField<String?>(
-                              initialValue: asignadoA,
-                              isExpanded: true,
-                              decoration: InputDecoration(
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                                filled: true,
-                                fillColor: const Color(0xFFF8FAFC),
-                              ),
-                              items: [
-                                const DropdownMenuItem<String?>(
-                                  value: null,
-                                  child: Text('Sin asignar', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                          : _miembrosEquipo.isEmpty
+                              ? Text('No hay integrantes en este tablero.', style: TextStyle(fontSize: 12, color: Colors.grey.shade500))
+                              : Wrap(
+                                  spacing: 8,
+                                  runSpacing: 6,
+                                  children: _miembrosEquipo.map((m) {
+                                    final estaSeleccionado = asignadosA.contains(m.id);
+                                    return FilterChip(
+                                      avatar: CircleAvatar(
+                                        backgroundColor: estaSeleccionado ? Colors.white : Colors.grey.shade300,
+                                        child: Text(
+                                          m.nombreCompleto.isNotEmpty ? m.nombreCompleto[0].toUpperCase() : '?',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
+                                            color: estaSeleccionado ? const Color(0xFF52ABEB) : Colors.grey.shade700,
+                                          ),
+                                        ),
+                                      ),
+                                      label: Text(
+                                        m.nombreCompleto,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: estaSeleccionado ? FontWeight.bold : FontWeight.normal,
+                                          color: estaSeleccionado ? Colors.white : const Color(0xFF1E293B),
+                                        ),
+                                      ),
+                                      selected: estaSeleccionado,
+                                      selectedColor: const Color(0xFF52ABEB),
+                                      checkmarkColor: Colors.white,
+                                      backgroundColor: const Color(0xFFF8FAFC),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        side: BorderSide(
+                                          color: estaSeleccionado ? const Color(0xFF52ABEB) : Colors.grey.shade300,
+                                        ),
+                                      ),
+                                      onSelected: (bool selected) {
+                                        setModalState(() {
+                                          if (selected) {
+                                            asignadosA.add(m.id);
+                                          } else {
+                                            asignadosA.remove(m.id);
+                                          }
+                                        });
+                                      },
+                                    );
+                                  }).toList(),
                                 ),
-                                ..._miembrosEquipo.map((m) => DropdownMenuItem<String?>(
-                                      value: m.id,
-                                      child: Text(m.nombreCompleto, style: const TextStyle(fontSize: 12)),
-                                    )),
-                              ],
-                              onChanged: (val) => setModalState(() => asignadoA = val),
-                            ),
                       const SizedBox(height: 14),
                     ],
 
-                    // PRIORIDAD DEL BORRADOR
+                    // PRIORIDAD
                     Text('Prioridad:', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B))),
                     const SizedBox(height: 6),
                     Row(
@@ -781,8 +1434,8 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
                       ),
                     const SizedBox(height: 14),
 
-                    // SELECTOR DE COLOR ETIQUETA
-                    Text('Color de la Nota:', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B))),
+                    // COLOR ETIQUETA
+                    Text('Color de Tarjeta Borrador:', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B))),
                     const SizedBox(height: 8),
                     Row(
                       children: _coloresEtiqueta.map((c) {
@@ -810,7 +1463,7 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
                     ),
                     const SizedBox(height: 20),
 
-                    // BOTÓN GUARDAR
+                    // BOTÓN GUARDAR BORRADOR DE TAREA
                     SizedBox(
                       width: double.infinity,
                       height: 46,
@@ -824,7 +1477,7 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
                             ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                             : const Icon(Icons.save_rounded, color: Colors.white, size: 18),
                         label: Text(
-                          guardandoBorrador ? 'Guardando...' : (esEdicion ? 'Guardar Cambios' : 'Crear Borrador'),
+                          guardandoBorrador ? 'Guardando...' : (esEdicion ? 'Guardar Cambios' : 'Guardar Borrador de Tarea'),
                           style: GoogleFonts.inter(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
                         ),
                         onPressed: guardandoBorrador
@@ -870,10 +1523,11 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
                                       colorHex: colorHexSeleccionado,
                                       adjuntos: adjuntosSubidos,
                                       fechaActualizacion: DateTime.now(),
-                                      asignadoA: asignadoA,
+                                      asignadosA: asignadosA,
                                       fechaPublicacionProgramada: fechaProgramada,
                                       columnaDestino: columnaDestino,
                                       prioridad: prioridadSeleccionada,
+                                      esNotaPersonal: false,
                                     );
                                     await _firestoreService.actualizarBorradorNota(borradorActualizado);
                                   } else {
@@ -886,10 +1540,11 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
                                       fechaCreacion: DateTime.now(),
                                       colorHex: colorHexSeleccionado,
                                       adjuntos: adjuntosSubidos,
-                                      asignadoA: asignadoA,
+                                      asignadosA: asignadosA,
                                       fechaPublicacionProgramada: fechaProgramada,
                                       columnaDestino: columnaDestino,
                                       prioridad: prioridadSeleccionada,
+                                      esNotaPersonal: false,
                                     );
                                     await _firestoreService.crearBorradorNota(nuevoBorrador);
                                   }
@@ -957,7 +1612,7 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('Adjuntar Archivo al Borrador (Máx. 10MB)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                const Text('Adjuntar Archivo (Máx. 10MB)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                 const SizedBox(height: 12),
                 ListTile(
                   leading: const CircleAvatar(backgroundColor: Color(0xFFEBF8FF), child: Icon(Icons.image_rounded, color: Color(0xFF52ABEB))),
@@ -1067,7 +1722,7 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
     return const Icon(Icons.description_rounded, color: Color(0xFF63D0A1), size: 18);
   }
 
-  // MODAL PARA ELEGIR LA COLUMNA DESTINO Y CONVERTIR EL BORRADOR A TAREA OFICIAL
+  // MODAL PARA PUBLICAR
   void _mostrarModalPublicarTarea(BorradorNota borrador) {
     final columnas = widget.tablero.columnas.isNotEmpty
         ? widget.tablero.columnas
@@ -1093,19 +1748,18 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '🚀 Publicar Borrador como Tarea',
+                    '🚀 Publicar como Tarea Oficial',
                     style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B)),
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Se creará la tarea "${borrador.titulo}" de forma oficial en el tablero, incluyendo sus ${borrador.adjuntos.length} archivos adjuntos.',
+                    'Se creará la tarea "${borrador.titulo}" en el tablero, incluyendo sus ${borrador.adjuntos.length} archivos adjuntos.',
                     style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                   ),
                   const SizedBox(height: 16),
 
-                  // DROPDOWN COLUMNA DESTINO
                   DropdownButtonFormField<String>(
-                    initialValue: columnaSeleccionada,
+                    value: columnaSeleccionada,
                     decoration: InputDecoration(
                       labelText: 'Columna Destino',
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -1121,7 +1775,6 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
                   ),
                   const SizedBox(height: 14),
 
-                  // PRIORIDAD DE LA TAREA
                   const Text('Prioridad Inicial:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                   const SizedBox(height: 8),
                   Row(
@@ -1133,7 +1786,6 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
                   ),
                   const SizedBox(height: 20),
 
-                  // BOTÓN PUBLICAR
                   SizedBox(
                     width: double.infinity,
                     height: 48,
@@ -1157,7 +1809,7 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
 
                           sca.showSnackBar(
                             SnackBar(
-                              content: Text('¡Borrador publicado con éxito en "$columnaSeleccionada"!'),
+                              content: Text('¡Publicado con éxito en "$columnaSeleccionada"!'),
                               backgroundColor: const Color(0xFF63D0A1),
                             ),
                           );
@@ -1205,12 +1857,13 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
     );
   }
 
-  void _confirmarEliminacion(BorradorNota borrador) {
+  void _confirmarEliminacion(BorradorNota elemento) {
+    final esNota = elemento.esNotaPersonal;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Eliminar Borrador'),
-        content: Text('¿Deseas eliminar el borrador "${borrador.titulo}"? Esta acción no se puede deshacer.'),
+        title: Text(esNota ? 'Eliminar Nota Personal' : 'Eliminar Borrador de Tarea'),
+        content: Text('¿Deseas eliminar "${elemento.titulo}"? Esta acción no se puede deshacer.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -1219,7 +1872,7 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
-              await _firestoreService.eliminarBorradorNota(borrador.id);
+              await _firestoreService.eliminarBorradorNota(elemento.id);
             },
             child: const Text('Eliminar', style: TextStyle(color: Colors.redAccent)),
           ),

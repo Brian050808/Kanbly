@@ -105,11 +105,13 @@ class _FormularioTableroState extends State<FormularioTablero>
   @override
   Widget build(BuildContext context) {
     final Color colorTema = widget.esGrupal ? azulCielo : verdeTurquesa;
+    final theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: blanco,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: blanco,
+        backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
         iconTheme: IconThemeData(color: colorTema),
         title: Text(
@@ -119,13 +121,13 @@ class _FormularioTableroState extends State<FormularioTablero>
                   ? 'Nuevo Tablero Grupal'
                   : 'Nuevo Tablero Individual',
           style: TextStyle(
-              color: grisOscuro, fontWeight: FontWeight.bold, fontSize: 18),
+              color: theme.colorScheme.onSurface, fontWeight: FontWeight.bold, fontSize: 18),
         ),
         centerTitle: true,
         bottom: TabBar(
           controller: _tabController,
           labelColor: colorTema,
-          unselectedLabelColor: Colors.grey.shade600,
+          unselectedLabelColor: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
           indicatorColor: colorTema,
           indicatorWeight: 3,
           indicatorSize: TabBarIndicatorSize.label,
@@ -162,7 +164,7 @@ class _FormularioTableroState extends State<FormularioTablero>
       bottomNavigationBar: Container(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: theme.cardColor,
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.05),

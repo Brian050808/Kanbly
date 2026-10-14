@@ -41,8 +41,10 @@ class _LoginViewState extends State<LoginView> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
-      backgroundColor: blanco,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: Consumer<AuthController>(
           builder: (context, authController, child) {
@@ -105,10 +107,11 @@ class _LoginViewState extends State<LoginView> {
                               child: TextFormField(
                                 controller: _emailController,
                                 focusNode: _emailFocus, // ← nuevo
+                                style: TextStyle(color: theme.colorScheme.onSurface),
                                 decoration: InputDecoration(
                                   labelText: 'Correo institucional',
-                                  labelStyle: const TextStyle(
-                                    color: grisOscuro,
+                                  labelStyle: TextStyle(
+                                    color: theme.colorScheme.onSurface,
                                     fontSize: 14,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -133,7 +136,7 @@ class _LoginViewState extends State<LoginView> {
                                     borderSide: const BorderSide(color: Colors.transparent, width: 2), // el gradiente lo da el Container exterior
                                   ),
                                   filled: true,
-                                  fillColor: blanco,
+                                  fillColor: theme.cardColor,
                                   contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
                                 ),
                                 validator: Validators.validateInstitutionalEmail,
@@ -157,10 +160,11 @@ class _LoginViewState extends State<LoginView> {
                                 controller: _passwordController,
                                 focusNode: _passwordFocus, // ← nuevo
                                 obscureText: _obscurePassword,
+                                style: TextStyle(color: theme.colorScheme.onSurface),
                                 decoration: InputDecoration(
                                   labelText: 'Contraseña',
-                                  labelStyle: const TextStyle(
-                                    color: grisOscuro,
+                                  labelStyle: TextStyle(
+                                    color: theme.colorScheme.onSurface,
                                     fontSize: 14,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -195,7 +199,7 @@ class _LoginViewState extends State<LoginView> {
                                     borderSide: const BorderSide(color: Colors.transparent, width: 2),
                                   ),
                                   filled: true,
-                                  fillColor: blanco,
+                                  fillColor: theme.cardColor,
                                   contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
                                 ),
                                 validator: Validators.validatePassword,

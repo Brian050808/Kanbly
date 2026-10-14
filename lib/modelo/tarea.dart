@@ -166,7 +166,7 @@ class Tarea {
   final String estadoNombre;
   final int orden;
   final String tableroId;
-  final String? asignadoA;
+  final List<String> asignadosA;
   final DateTime fechaCreacion;
   final DateTime? fechaVencimiento;
   final DateTime? fechaActualizacion;
@@ -178,6 +178,9 @@ class Tarea {
   final String? creadaPor;
   final String? comentario;
 
+  /// Retorna el primer integrante asignado para compatibilidad con código legacy
+  String? get asignadoA => asignadosA.isNotEmpty ? asignadosA.first : null;
+
   Tarea({
     required this.id,
     required this.titulo,
@@ -186,7 +189,8 @@ class Tarea {
     String? estadoNombre,
     this.orden = 0,
     required this.tableroId,
-    this.asignadoA,
+    List<String>? asignadosA,
+    String? asignadoA,
     required this.fechaCreacion,
     this.fechaVencimiento,
     this.fechaActualizacion,
@@ -197,7 +201,8 @@ class Tarea {
     this.archivada = false,
     this.creadaPor,
     this.comentario,
-  }) : estadoNombre = estadoNombre ?? (estado.value);
+  })  : estadoNombre = estadoNombre ?? (estado.value),
+        asignadosA = asignadosA ?? (asignadoA != null ? [asignadoA] : const []);
 
   static int _parsePrioridad(dynamic val) {
     if (val == null) return 2;
@@ -253,6 +258,13 @@ class Tarea {
       }
     }
 
+    List<String> asignadosList = [];
+    if (map['asignadosA'] != null && map['asignadosA'] is List) {
+      asignadosList = List<String>.from(map['asignadosA']);
+    } else if (map['asignadoA'] != null && map['asignadoA'].toString().trim().isNotEmpty) {
+      asignadosList = [map['asignadoA'].toString()];
+    }
+
     return Tarea(
       id: id,
       titulo: tituloStr.trim().isNotEmpty ? tituloStr : 'Tarea sin título',
@@ -261,7 +273,7 @@ class Tarea {
       estadoNombre: estadoStr,
       orden: _parseInt(map['orden']),
       tableroId: map['tableroId']?.toString() ?? '',
-      asignadoA: map['asignadoA']?.toString(),
+      asignadosA: asignadosList,
       fechaCreacion: _parseFecha(map['fechaCreacion']) ?? DateTime.now(),
       fechaVencimiento: _parseFecha(map['fechaVencimiento']),
       fechaActualizacion: _parseFecha(map['fechaActualizacion']),
@@ -282,6 +294,7 @@ class Tarea {
       'estado': estadoNombre,
       'orden': orden,
       'tableroId': tableroId,
+      'asignadosA': asignadosA,
       'asignadoA': asignadoA,
       'fechaCreacion': Timestamp.fromDate(fechaCreacion),
       'fechaVencimiento': fechaVencimiento != null
@@ -308,6 +321,7 @@ class Tarea {
     String? estadoNombre,
     int? orden,
     String? tableroId,
+    List<String>? asignadosA,
     String? asignadoA,
     DateTime? fechaCreacion,
     DateTime? fechaVencimiento,
@@ -328,7 +342,7 @@ class Tarea {
       estadoNombre: estadoNombre ?? (estado != null ? estado.value : this.estadoNombre),
       orden: orden ?? this.orden,
       tableroId: tableroId ?? this.tableroId,
-      asignadoA: asignadoA ?? this.asignadoA,
+      asignadosA: asignadosA ?? (asignadoA != null ? [asignadoA] : this.asignadosA),
       fechaCreacion: fechaCreacion ?? this.fechaCreacion,
       fechaVencimiento: fechaVencimiento ?? this.fechaVencimiento,
       fechaActualizacion: fechaActualizacion ?? this.fechaActualizacion,

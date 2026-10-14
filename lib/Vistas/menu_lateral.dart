@@ -5,94 +5,113 @@ import '../controlador/auth_controller.dart';
 import 'mis_tableros.dart';
 import 'login_view.dart';
 import './invitaciones_page.dart';
+import './ajustes_page.dart';
 
 class MenuLateral extends StatelessWidget {
   const MenuLateral({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Obtenemos el usuario actual de Firebase para mostrar su información
-    final usuarioActual = FirebaseAuth.instance.currentUser;
-    final String correoUsuario = usuarioActual?.email ?? 'usuario@e.uttecamac.edu.mx';
+    final theme = Theme.of(context);
+    final textStyleTile = TextStyle(
+      color: theme.colorScheme.onSurface,
+      fontWeight: FontWeight.w600,
+    );
 
     return Drawer(
-      backgroundColor: const Color(0xFFFCFDFD),
+      backgroundColor: theme.drawerTheme.backgroundColor ?? theme.cardColor,
       child: Column(
         children: [
-          // --- ENCABEZADO CON DEGRADADO OFICIAL DE KANBLY ---
-          DrawerHeader(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF52ABEB), Color(0xFF63D0A1)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
-            child: SizedBox(
-              width: double.infinity,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.end,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const CircleAvatar(
-                    radius: 24,
-                    backgroundColor: Colors.white,
-                    child: Icon(
-                      Icons.person_rounded,
-                      color: Color(0xFF52ABEB),
-                      size: 30,
-                    ),
+          // --- ENCABEZADO CON DEGRADADO OFICIAL DE KANBLY Y PROVEEDOR DE AUTH ---
+          Consumer<AuthController>(
+            builder: (context, authController, child) {
+              final usuario = authController.usuarioActual;
+              final String nombreUsuario = authController.userName;
+              final String correoUsuario = authController.userEmail.isNotEmpty
+                  ? authController.userEmail
+                  : (FirebaseAuth.instance.currentUser?.email ?? 'usuario@e.uttecamac.edu.mx');
+              final String? fotoUrl = usuario?.fotoPerfil;
+
+              return DrawerHeader(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF52ABEB), Color(0xFF63D0A1)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Kanbly',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1,
-                    ),
+                ),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      CircleAvatar(
+                        radius: 26,
+                        backgroundColor: Colors.white,
+                        backgroundImage: (fotoUrl != null && fotoUrl.isNotEmpty)
+                            ? NetworkImage(fotoUrl) as ImageProvider
+                            : null,
+                        child: (fotoUrl == null || fotoUrl.isEmpty)
+                            ? Text(
+                                nombreUsuario.isNotEmpty ? nombreUsuario[0].toUpperCase() : 'K',
+                                style: const TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF52ABEB),
+                                ),
+                              )
+                            : null,
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        nombreUsuario,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        correoUsuario,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Color(0xDEFFFFFF),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    correoUsuario,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Color(0xDEFFFFFF),
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+                ),
+              );
+            },
           ),
 
           // --- OPCIÓN 1: MIS TABLEROS ---
           ListTile(
             leading: const Icon(Icons.dashboard_outlined, color: Color(0xFF37B5F4)),
-            title: const Text(
-              'Mis Tableros',
-              style: TextStyle(
-                color: Color(0xFF1E293B),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            title: Text('Mis Tableros', style: textStyleTile),
             onTap: () {
-              Navigator.pop(context); // Primero cerramos el menú lateral
-
-              // Navegamos a Mis Tableros limpiando las pantallas superpuestas en memoria
+              Navigator.pop(context); // Cerramos el menú lateral
               Navigator.pushAndRemoveUntil(
                 context,
                 MaterialPageRoute(builder: (context) => const MisTableros()),
-                    (route) => false,
+                (route) => false,
               );
             },
           ),
+
+          // --- OPCIÓN 2: INVITACIONES ---
           ListTile(
-            leading: const Icon(Icons.mail_outline),
-            title: const Text('Invitaciones'),
+            leading: const Icon(Icons.mail_outline, color: Color(0xFF52ABEB)),
+            title: Text('Invitaciones', style: textStyleTile),
             onTap: () {
+              Navigator.pop(context);
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -102,9 +121,23 @@ class MenuLateral extends StatelessWidget {
             },
           ),
 
+          // --- OPCIÓN 3: AJUSTES Y PERFIL ---
+          ListTile(
+            leading: const Icon(Icons.tune_rounded, color: Color(0xFF63D0A1)),
+            title: Text('Ajustes', style: textStyleTile),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AjustesPage(),
+                ),
+              );
+            },
+          ),
+
           const Divider(indent: 16, endIndent: 16),
 
-          // --- EMPUJA LA OPCIÓN DE SALIR HASTA LA PARTE INFERIOR ---
           const Spacer(),
           const Divider(indent: 16, endIndent: 16),
 
@@ -143,27 +176,21 @@ class MenuLateral extends StatelessWidget {
           ),
           TextButton(
             onPressed: () async {
-              // 1. Cerramos únicamente el cuadro de diálogo
               Navigator.pop(dialogContext);
 
-              // 2. Obtenemos tu controlador de autenticación mediante Provider
               final authController = Provider.of<AuthController>(context, listen: false);
 
-              // 3. Cerramos sesión DESDE EL CONTROLADOR para que actualice 'isAuthenticated = false'
-              // Nota: Si en tu AuthController el metodo se llama signOut() en lugar de logout(), cámbialo aquí:
               try {
                 await authController.logout();
               } catch (e) {
-                // Por seguridad, si falla el controlador, forzamos el cierre en Firebase
                 await FirebaseAuth.instance.signOut();
               }
 
-              // 4. Redirigimos al Login limpiando el historial
               if (context.mounted) {
                 Navigator.pushAndRemoveUntil(
                   context,
                   MaterialPageRoute(builder: (context) => const LoginView()),
-                      (route) => false,
+                  (route) => false,
                 );
               }
             },

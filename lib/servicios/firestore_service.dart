@@ -626,6 +626,51 @@ class FirestoreService {
     });
   }
 
+  /// Escucha en tiempo real las notas personales vinculadas a una tarea específica
+  Stream<List<BorradorNota>> escucharNotasDeTarea(String tareaId) {
+    return _firestore
+        .collection('borradores_notas')
+        .where('tareaId', isEqualTo: tareaId)
+        .snapshots()
+        .map((snapshot) {
+      final lista = snapshot.docs.map((doc) {
+        return BorradorNota.fromMap(doc.id, doc.data());
+      }).toList();
+      lista.sort((a, b) => b.fechaCreacion.compareTo(a.fechaCreacion));
+      return lista;
+    });
+  }
+
+  /// Vincula una nota personal a una tarea del tablero
+  Future<void> vincularNotaATarea({
+    required String borradorId,
+    required String tareaId,
+    required String tareaTitulo,
+  }) async {
+    try {
+      await _firestore.collection('borradores_notas').doc(borradorId).update({
+        'tareaId': tareaId,
+        'tareaTitulo': tareaTitulo,
+        'fechaActualizacion': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      throw Exception('Error al vincular nota a la tarea: $e');
+    }
+  }
+
+  /// Desvincula una nota personal de su tarea asignada
+  Future<void> desvincularNotaDeTarea(String borradorId) async {
+    try {
+      await _firestore.collection('borradores_notas').doc(borradorId).update({
+        'tareaId': FieldValue.delete(),
+        'tareaTitulo': FieldValue.delete(),
+        'fechaActualizacion': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      throw Exception('Error al desvincular nota de la tarea: $e');
+    }
+  }
+
   /// Crea un nuevo borrador o nota personal
   Future<String> crearBorradorNota(BorradorNota borrador) async {
     try {
@@ -675,7 +720,7 @@ class FirestoreService {
         estadoNombre: columnaDestino,
         orden: 0,
         tableroId: borrador.tableroId,
-        asignadoA: borrador.asignadoA,
+        asignadosA: borrador.asignadosA,
         fechaCreacion: DateTime.now(),
         prioridad: prioridadFinal,
         adjuntos: borrador.adjuntos,

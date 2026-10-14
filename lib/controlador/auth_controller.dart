@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../modelo/usuario.dart';
 import '../servicios/auth_service.dart';
 import '../servicios/firestore_service.dart';
-import '../servicios/encryption_service.dart';
 
 enum AuthStatus {
   initial,
@@ -115,9 +114,6 @@ class AuthController extends ChangeNotifier {
         throw Exception('Solo se permiten correos institucionales @e.uttecamac.edu.mx');
       }
 
-      // Encriptar contraseña para verificación
-      final encryptedPassword = EncryptionService.encryptPassword(password);
-
       // Iniciar sesión en Firebase Auth
       final userCredential = await _authService.loginConEmailYPassword(email, password);
 
@@ -203,11 +199,6 @@ class AuthController extends ChangeNotifier {
     }
   }
 
-  // Guardar contraseña encriptada
-  Future<void> _saveEncryptedPassword(String encryptedPassword) async {
-    // Implementar si se quiere guardar en SharedPreferences
-  }
-
   void _setStatus(AuthStatus status) {
     _status = status;
     notifyListeners();
@@ -236,4 +227,53 @@ class AuthController extends ChangeNotifier {
 
   // Obtener rol del usuario
   String get userRole => _usuarioActual?.rol ?? 'estudiante';
+
+  // Actualizar perfil de usuario
+  Future<bool> actualizarPerfil({
+    String? nombreCompleto,
+    String? fotoPerfil,
+  }) async {
+    try {
+      _clearError();
+
+      if (_usuarioActual == null) {
+        throw Exception('No hay sesión de usuario activa');
+      }
+
+      final nuevoNombre = (nombreCompleto != null && nombreCompleto.trim().isNotEmpty)
+          ? nombreCompleto.trim()
+          : _usuarioActual!.nombreCompleto;
+
+      final nuevaFoto = fotoPerfil ?? _usuarioActual!.fotoPerfil;
+
+      final usuarioActualizado = _usuarioActual!.copyWith(
+        nombreCompleto: nuevoNombre,
+        fotoPerfil: nuevaFoto,
+      );
+
+      await _firestoreService.actualizarUsuario(usuarioActualizado);
+      _usuarioActual = usuarioActualizado;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _setError(e.toString().replaceFirst('Exception: ', ''));
+      return false;
+    }
+  }
+
+  // Recargar datos del usuario desde Firestore
+  Future<void> recargarUsuario() async {
+    try {
+      final user = _authService.getCurrentUser();
+      if (user != null) {
+        final usuario = await _firestoreService.obtenerUsuario(user.uid);
+        if (usuario != null) {
+          _usuarioActual = usuario;
+          notifyListeners();
+        }
+      }
+    } catch (e) {
+      print('Error al recargar usuario: $e');
+    }
+  }
 }
