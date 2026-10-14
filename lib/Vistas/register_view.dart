@@ -37,6 +37,14 @@ class _RegisterViewState extends State<RegisterView> {
   static const Color blanco = Color(0xFFFCFDFD);
   static const Color grisOscuro = Color(0xFF1E293B);
 
+  @override                                                          // ← NUEVO
+  void initState() {                                                 // ← NUEVO
+    super.initState();                                               // ← NUEVO
+    WidgetsBinding.instance.addPostFrameCallback((_) {                // ← NUEVO
+      Provider.of<AuthController>(context, listen: false).clearError(); // ← NUEVO
+    });                                                               // ← NUEVO
+  }
+
   @override
   void dispose() {
     _nameController.dispose();
