@@ -1323,6 +1323,7 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
                                 initialDate: fechaProgramada ?? DateTime.now(),
                                 firstDate: DateTime.now(),
                                 lastDate: DateTime(2030),
+                                locale: Localizations.localeOf(context),
                               );
                               if (fecha != null && context.mounted) {
                                 final hora = await showTimePicker(

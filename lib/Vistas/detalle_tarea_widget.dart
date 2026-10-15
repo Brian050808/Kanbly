@@ -257,6 +257,7 @@ class _DetalleTareaWidgetState extends State<DetalleTareaWidget> {
                         initialDate: _fechaVencimiento ?? DateTime.now(),
                         firstDate: DateTime(2020),
                         lastDate: DateTime(2030),
+                        locale: Localizations.localeOf(context),
                       );
                       if (fecha != null) setState(() => _fechaVencimiento = fecha);
                     },
@@ -440,18 +441,20 @@ class _DetalleTareaWidgetState extends State<DetalleTareaWidget> {
 
     return DefaultTabController(
       length: 3,
-      child: Container(
-        height: MediaQuery.of(context).size.height * 0.85,
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom + 12,
-          left: 18,
-          right: 18,
-          top: 14,
-        ),
-        decoration: BoxDecoration(
-          color: theme.cardColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          height: MediaQuery.of(context).size.height * 0.85,
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom + 12,
+            left: 18,
+            right: 18,
+            top: 14,
+          ),
+          decoration: BoxDecoration(
+            color: theme.cardColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -932,6 +935,7 @@ class _DetalleTareaWidgetState extends State<DetalleTareaWidget> {
           ],
         ),
       ),
+    ),
     );
   }
 

@@ -30,12 +30,15 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
   firebase_core:
   firebase_auth:
   cloud_firestore:
   http: ^1.2.1
   firebase_storage:
   provider:
+  shared_preferences: ^2.3.5
   email_validator:
   image_picker:
   file_picker: ^8.1.7

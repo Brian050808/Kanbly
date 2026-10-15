@@ -473,9 +473,16 @@ class _AjustesPageState extends State<AjustesPage> {
                         subtitle: Text(themeProvider.themeString),
                         trailing: DropdownButton<String>(
                           value: themeProvider.themeString,
+                          dropdownColor: theme.cardColor,
                           underline: const SizedBox(),
                           items: ['Claro', 'Oscuro', 'Sistema']
-                              .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                              .map((t) => DropdownMenuItem(
+                                    value: t,
+                                    child: Text(
+                                      t,
+                                      style: TextStyle(color: theme.colorScheme.onSurface),
+                                    ),
+                                  ))
                               .toList(),
                           onChanged: (nuevo) {
                             if (nuevo != null) {

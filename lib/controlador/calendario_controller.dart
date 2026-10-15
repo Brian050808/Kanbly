@@ -35,20 +35,19 @@ class CalendarioController {
   Color colorPorEstado(EstadoTarea estado) {
     switch (estado) {
       case EstadoTarea.pendiente:
-        return const Color(0xFF1E293B);
+        return const Color(0xFF52ABEB); // Azul
       case EstadoTarea.enProgreso:
-        return const Color(0xFF63B09C);
+        return const Color(0xFFF59E0B); // Ámbar / Naranja
       case EstadoTarea.completada:
-        return const Color(0xFF63D0A1);
+        return const Color(0xFF63D0A1); // Verde Turquesa
       case EstadoTarea.bloqueada:
-        return const Color(0xFFE53E3E);
+        return const Color(0xFFE53E3E); // Rojo
     }
   }
 
   Color colorPorTiempoRestante(DateTime? fechaVencimiento, EstadoTarea estado) {
-    // Si está completada, siempre será azul
     if (estado == EstadoTarea.completada) {
-      return const Color(0xFF52ABEB);
+      return const Color(0xFF63D0A1);
     }
 
     if (fechaVencimiento == null) {
@@ -56,25 +55,49 @@ class CalendarioController {
     }
 
     final ahora = DateTime.now();
-    final diferencia = fechaVencimiento.difference(ahora);
+    final inicioHoy = DateTime(ahora.year, ahora.month, ahora.day);
+    final inicioVencimiento = DateTime(
+      fechaVencimiento.year,
+      fechaVencimiento.month,
+      fechaVencimiento.day,
+    );
 
-    // La tarea ya venció
-    if (diferencia.isNegative) {
-      return const Color(0xFFB91C1C);
+    final diferenciaDias = inicioVencimiento.difference(inicioHoy).inDays;
+
+    if (diferenciaDias < 0) {
+      return const Color(0xFFE53E3E); // Vencida (Rojo)
+    } else if (diferenciaDias == 0) {
+      return const Color(0xFFF59E0B); // Vence hoy (Naranja)
+    } else if (diferenciaDias <= 2) {
+      return const Color(0xFF52ABEB); // Próxima (Azul)
     }
+    return const Color(0xFF63D0A1); // Verde
+  }
 
-    // Falta 1 día o menos
-    if (diferencia.inHours <= 24) {
-      return const Color(0xFFE53E3E);
+  String textoEstadoTiempo(DateTime? fechaVencimiento, EstadoTarea estado) {
+    if (estado == EstadoTarea.completada) return 'Completada';
+    if (fechaVencimiento == null) return 'Sin fecha';
+
+    final ahora = DateTime.now();
+    final inicioHoy = DateTime(ahora.year, ahora.month, ahora.day);
+    final inicioVencimiento = DateTime(
+      fechaVencimiento.year,
+      fechaVencimiento.month,
+      fechaVencimiento.day,
+    );
+
+    final diferenciaDias = inicioVencimiento.difference(inicioHoy).inDays;
+
+    if (diferenciaDias < 0) {
+      final diasPasados = diferenciaDias.abs();
+      return 'Vencida hace $diasPasados ${diasPasados == 1 ? "día" : "días"}';
+    } else if (diferenciaDias == 0) {
+      return 'Vence hoy';
+    } else if (diferenciaDias == 1) {
+      return 'Vence mañana';
+    } else {
+      return 'Vence en $diferenciaDias días';
     }
-
-    // Falta hasta 2 días
-    if (diferencia.inHours <= 48) {
-      return const Color(0xFFF59E0B);
-    }
-
-    // Falta más de 2 días
-    return const Color(0xFF63D0A1);
   }
 
   // Seleccionar un día del calendario

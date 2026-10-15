@@ -32,7 +32,7 @@ class _FormularioTableroState extends State<FormularioTablero>
   Map<String, MiembroTableroInfo> _miembrosInfo = {};
   List<String> _columnas = ['Pendiente', 'En progreso', 'Completada'];
   String _fechaActualizacion = 'Sin actualizar';
-// Invitaciones preparadas, pendientes de guardar con el tablero.
+  // Invitaciones preparadas, pendientes de guardar con el tablero.
   final Map<String, Usuario> _invitacionesPendientes = {};
   final Map<String, String> _rolesInvitacionesPendientes = {};
   // Módulos del tablero
@@ -44,7 +44,6 @@ class _FormularioTableroState extends State<FormularioTablero>
   final Color blanco = const Color(0xFFFCFDFD);
   final Color azulCielo = const Color(0xFF52ABEB);
   final Color verdeTurquesa = const Color(0xFF63D0A1);
-  final Color grisOscuro = const Color(0xFF1E293B);
 
   List<String> _roles = List.from(Tablero.rolesPredeterminados);
 
@@ -199,6 +198,9 @@ class _FormularioTableroState extends State<FormularioTablero>
 
   // --- PESTAÑA 1: INFORMACIÓN GENERAL Y MÓDULOS ---
   Widget _construirPestanaGeneral(Color colorTema) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
       children: [
@@ -238,7 +240,7 @@ class _FormularioTableroState extends State<FormularioTablero>
                     ? 'Colaboración en tiempo real con permisos granulares y roles'
                     : 'Espacio personal de organización de tareas',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600, fontSize: 12),
               ),
             ],
           ),
@@ -253,14 +255,15 @@ class _FormularioTableroState extends State<FormularioTablero>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Nombre del Tablero *',
+              Text('Nombre del Tablero *',
                   style: TextStyle(
-                      color: Color(0xFF1E293B),
+                      color: theme.colorScheme.onSurface,
                       fontWeight: FontWeight.bold,
                       fontSize: 13)),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _nombreController,
+                style: TextStyle(color: theme.colorScheme.onSurface),
                 decoration: _construirDecoracionInput(
                   pista: 'Ej. Proyecto Integrador...',
                   icono: Icons.dashboard_outlined,
@@ -271,15 +274,16 @@ class _FormularioTableroState extends State<FormularioTablero>
                     : null,
               ),
               const SizedBox(height: 16),
-              const Text('Descripción (Opcional)',
+              Text('Descripción (Opcional)',
                   style: TextStyle(
-                      color: Color(0xFF1E293B),
+                      color: theme.colorScheme.onSurface,
                       fontWeight: FontWeight.bold,
                       fontSize: 13)),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _descripcionController,
                 maxLines: 3,
+                style: TextStyle(color: theme.colorScheme.onSurface),
                 decoration: _construirDecoracionInput(
                   pista: 'Describe los objetivos del tablero...',
                   icono: Icons.description_outlined,
@@ -366,6 +370,9 @@ class _FormularioTableroState extends State<FormularioTablero>
 
   // --- PESTAÑA 2: PERSONALIZAR TABLERO (COLUMNAS Y FLUJOS KANBAN) ---
   Widget _construirPestanaPersonalizar(Color colorTema) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
       children: [
@@ -395,13 +402,13 @@ class _FormularioTableroState extends State<FormularioTablero>
                       style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 15,
-                          color: grisOscuro),
+                          color: theme.colorScheme.onSurface),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       'Añade, reordena o cambia el nombre de las columnas de tu tablero.',
                       style: TextStyle(
-                          color: Colors.grey.shade600, fontSize: 12),
+                          color: isDark ? Colors.grey.shade400 : Colors.grey.shade600, fontSize: 12),
                     ),
                   ],
                 ),
@@ -421,7 +428,7 @@ class _FormularioTableroState extends State<FormularioTablero>
             children: [
               Text(
                 'Selecciona una plantilla predefinida para aplicar un flujo de trabajo rápido:',
-                style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600, fontSize: 12),
               ),
               const SizedBox(height: 12),
               Wrap(
@@ -559,9 +566,9 @@ class _FormularioTableroState extends State<FormularioTablero>
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
+                    color: isDark ? const Color(0xFF121824) : Colors.grey.shade50,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade200),
+                    border: Border.all(color: isDark ? const Color(0xFF2D3748) : Colors.grey.shade200),
                   ),
                   child: Row(
                     children: [
@@ -586,17 +593,17 @@ class _FormularioTableroState extends State<FormularioTablero>
                       Expanded(
                         child: Text(
                           colNombre,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 14,
-                            color: Color(0xFF1E293B),
+                            color: theme.colorScheme.onSurface,
                           ),
                         ),
                       ),
                       if (idx > 0)
                         IconButton(
-                          icon: const Icon(Icons.arrow_upward_rounded,
-                              size: 18, color: Colors.grey),
+                          icon: Icon(Icons.arrow_upward_rounded,
+                              size: 18, color: isDark ? Colors.grey.shade400 : Colors.grey),
                           tooltip: 'Mover hacia arriba',
                           onPressed: () {
                             setState(() {
@@ -607,8 +614,8 @@ class _FormularioTableroState extends State<FormularioTablero>
                         ),
                       if (idx < _columnas.length - 1)
                         IconButton(
-                          icon: const Icon(Icons.arrow_downward_rounded,
-                              size: 18, color: Colors.grey),
+                          icon: Icon(Icons.arrow_downward_rounded,
+                              size: 18, color: isDark ? Colors.grey.shade400 : Colors.grey),
                           tooltip: 'Mover hacia abajo',
                           onPressed: () {
                             setState(() {
@@ -673,7 +680,7 @@ class _FormularioTableroState extends State<FormularioTablero>
             children: [
               Text(
                 'Personaliza los roles de los integrantes según la metodología de tu proyecto:',
-                style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600, fontSize: 12),
               ),
               const SizedBox(height: 12),
               ..._roles.asMap().entries.map((entry) {
@@ -685,9 +692,9 @@ class _FormularioTableroState extends State<FormularioTablero>
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
+                    color: isDark ? const Color(0xFF121824) : Colors.grey.shade50,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade200),
+                    border: Border.all(color: isDark ? const Color(0xFF2D3748) : Colors.grey.shade200),
                   ),
                   child: Row(
                     children: [
@@ -712,17 +719,17 @@ class _FormularioTableroState extends State<FormularioTablero>
                       Expanded(
                         child: Text(
                           rolNombre,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 14,
-                            color: Color(0xFF1E293B),
+                            color: theme.colorScheme.onSurface,
                           ),
                         ),
                       ),
                       if (idx > 0)
                         IconButton(
-                          icon: const Icon(Icons.arrow_upward_rounded,
-                              size: 18, color: Colors.grey),
+                          icon: Icon(Icons.arrow_upward_rounded,
+                              size: 18, color: isDark ? Colors.grey.shade400 : Colors.grey),
                           tooltip: 'Mover hacia arriba',
                           onPressed: () {
                             setState(() {
@@ -733,8 +740,8 @@ class _FormularioTableroState extends State<FormularioTablero>
                         ),
                       if (idx < _roles.length - 1)
                         IconButton(
-                          icon: const Icon(Icons.arrow_downward_rounded,
-                              size: 18, color: Colors.grey),
+                          icon: Icon(Icons.arrow_downward_rounded,
+                              size: 18, color: isDark ? Colors.grey.shade400 : Colors.grey),
                           tooltip: 'Mover hacia abajo',
                           onPressed: () {
                             setState(() {
@@ -794,25 +801,30 @@ class _FormularioTableroState extends State<FormularioTablero>
 
   void _dialogAgregarColumna() {
     final controller = TextEditingController();
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Agregar Nueva Columna',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        backgroundColor: theme.dialogTheme.backgroundColor,
+        title: Text('Agregar Nueva Columna',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         content: TextField(
           controller: controller,
           autofocus: true,
-          decoration: InputDecoration(
-            labelText: 'Nombre de la columna',
-            hintText: 'Ej. Por Revisar, Bloqueada, QA...',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          style: TextStyle(color: theme.colorScheme.onSurface),
+          decoration: _construirDecoracionInput(
+            pista: 'Ej. Por Revisar, Bloqueada, QA...',
+            icono: Icons.view_column_outlined,
+            colorFoco: azulCielo,
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
+            child: Text('Cancelar', style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -849,24 +861,30 @@ class _FormularioTableroState extends State<FormularioTablero>
 
   void _dialogEditarColumna(int index) {
     final controller = TextEditingController(text: _columnas[index]);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Editar Columna',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        backgroundColor: theme.dialogTheme.backgroundColor,
+        title: Text('Editar Columna',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         content: TextField(
           controller: controller,
           autofocus: true,
-          decoration: InputDecoration(
-            labelText: 'Nombre de la columna',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          style: TextStyle(color: theme.colorScheme.onSurface),
+          decoration: _construirDecoracionInput(
+            pista: 'Nombre de la columna',
+            icono: Icons.edit_outlined,
+            colorFoco: azulCielo,
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
+            child: Text('Cancelar', style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -894,25 +912,30 @@ class _FormularioTableroState extends State<FormularioTablero>
 
   void _dialogAgregarRol() {
     final controller = TextEditingController();
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Agregar Nuevo Rol',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        backgroundColor: theme.dialogTheme.backgroundColor,
+        title: Text('Agregar Nuevo Rol',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         content: TextField(
           controller: controller,
           autofocus: true,
-          decoration: InputDecoration(
-            labelText: 'Nombre del rol',
-            hintText: 'Ej. Líder Técnico, Scrum Master, QA...',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          style: TextStyle(color: theme.colorScheme.onSurface),
+          decoration: _construirDecoracionInput(
+            pista: 'Ej. Líder Técnico, Scrum Master, QA...',
+            icono: Icons.badge_outlined,
+            colorFoco: azulCielo,
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
+            child: Text('Cancelar', style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -949,24 +972,30 @@ class _FormularioTableroState extends State<FormularioTablero>
 
   void _dialogEditarRol(int index) {
     final controller = TextEditingController(text: _roles[index]);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Editar Rol',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        backgroundColor: theme.dialogTheme.backgroundColor,
+        title: Text('Editar Rol',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         content: TextField(
           controller: controller,
           autofocus: true,
-          decoration: InputDecoration(
-            labelText: 'Nombre del rol',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          style: TextStyle(color: theme.colorScheme.onSurface),
+          decoration: _construirDecoracionInput(
+            pista: 'Nombre del rol',
+            icono: Icons.edit_outlined,
+            colorFoco: azulCielo,
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
+            child: Text('Cancelar', style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -1001,12 +1030,15 @@ class _FormularioTableroState extends State<FormularioTablero>
     required ValueChanged<bool> onChanged,
     required Color colorTema,
   }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return SwitchListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       title: Text(titulo,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: theme.colorScheme.onSurface)),
       subtitle: Text(subtitulo,
-          style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+          style: TextStyle(fontSize: 11, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600)),
       secondary: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
@@ -1028,6 +1060,8 @@ class _FormularioTableroState extends State<FormularioTablero>
         widget.tablero?.esCreador(currentUserId) ?? true;
     final bool esAdmin =
         widget.tablero?.esAdminOCreador(currentUserId) ?? true;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
@@ -1036,9 +1070,9 @@ class _FormularioTableroState extends State<FormularioTablero>
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: theme.cardColor,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.grey.shade200),
+            border: Border.all(color: isDark ? const Color(0xFF2D3748) : Colors.grey.shade200),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.02),
@@ -1053,18 +1087,18 @@ class _FormularioTableroState extends State<FormularioTablero>
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Integrantes del Equipo',
                     style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
-                        color: Color(0xFF1E293B)),
+                        color: theme.colorScheme.onSurface),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     '${_miembrosSeleccionados.length} miembros registrados',
                     style:
-                        TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                        TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600, fontSize: 12),
                   ),
                 ],
               ),
@@ -1095,14 +1129,14 @@ class _FormularioTableroState extends State<FormularioTablero>
             padding: const EdgeInsets.all(32),
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: Colors.grey.shade50,
+              color: isDark ? const Color(0xFF121824) : Colors.grey.shade50,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.shade200),
+              border: Border.all(color: isDark ? const Color(0xFF2D3748) : Colors.grey.shade200),
             ),
-            child: const Text(
+            child: Text(
               'No hay miembros en este equipo aún.\nHaz clic en "Invitar" para sumar integrantes.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey, fontSize: 13),
+              style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey, fontSize: 13),
             ),
           )
         else
@@ -1134,14 +1168,14 @@ class _FormularioTableroState extends State<FormularioTablero>
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: theme.cardColor,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: isOwner
                       ? Colors.amber.shade400
                       : info.esAdmin
                           ? azulCielo
-                          : Colors.grey.shade200,
+                          : isDark ? const Color(0xFF2D3748) : Colors.grey.shade200,
                   width: isOwner || info.esAdmin ? 1.5 : 1.0,
                 ),
                 boxShadow: [
@@ -1188,10 +1222,10 @@ class _FormularioTableroState extends State<FormularioTablero>
                                 Expanded(
                                   child: Text(
                                     usuario.nombreCompleto,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 14,
-                                      color: Color(0xFF1E293B),
+                                      color: theme.colorScheme.onSurface,
                                     ),
                                   ),
                                 ),
@@ -1200,7 +1234,7 @@ class _FormularioTableroState extends State<FormularioTablero>
                             Text(
                               usuario.email,
                               style: TextStyle(
-                                  color: Colors.grey.shade600, fontSize: 11),
+                                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade600, fontSize: 11),
                             ),
                           ],
                         ),
@@ -1245,12 +1279,12 @@ class _FormularioTableroState extends State<FormularioTablero>
                                 ? Colors.amber.shade100
                                 : info.esAdmin
                                     ? azulCielo.withOpacity(0.15)
-                                    : Colors.grey.shade100,
+                                    : isDark ? const Color(0xFF121824) : Colors.grey.shade100,
                             colorTexto: isOwner
                                 ? Colors.amber.shade900
                                 : info.esAdmin
                                     ? azulCielo
-                                    : Colors.grey.shade800,
+                                    : isDark ? Colors.grey.shade300 : Colors.grey.shade800,
                             icono: isOwner
                                 ? Icons.shield_rounded
                                 : info.esAdmin
@@ -1260,7 +1294,7 @@ class _FormularioTableroState extends State<FormularioTablero>
                           _badge(
                             texto: info.rolKanban,
                             colorFondo: verdeTurquesa.withOpacity(0.15),
-                            colorTexto: const Color(0xFF1E293B),
+                            colorTexto: theme.colorScheme.onSurface,
                             icono: Icons.work_outline_rounded,
                           ),
                         ],
@@ -1304,10 +1338,13 @@ class _FormularioTableroState extends State<FormularioTablero>
     bool esAdminSeleccionado = infoActual.esAdmin;
     PermisosMiembro permisosTemp = infoActual.permisos;
 
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: theme.cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -1331,7 +1368,7 @@ class _FormularioTableroState extends State<FormularioTablero>
                         width: 44,
                         height: 5,
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade300,
+                          color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
                           borderRadius: BorderRadius.circular(10),
                         ),
                       ),
@@ -1370,14 +1407,14 @@ class _FormularioTableroState extends State<FormularioTablero>
                             children: [
                               Text(
                                 usuario.nombreCompleto,
-                                style: const TextStyle(
+                                style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 16,
-                                    color: Color(0xFF1E293B)),
+                                    color: theme.colorScheme.onSurface),
                               ),
                               Text(usuario.email,
                                   style: TextStyle(
-                                      color: Colors.grey.shade600,
+                                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
                                       fontSize: 12)),
                             ],
                           ),
@@ -1443,22 +1480,22 @@ class _FormularioTableroState extends State<FormularioTablero>
                       Container(
                         margin: const EdgeInsets.only(bottom: 16),
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade50,
+                          color: isDark ? const Color(0xFF121824) : Colors.grey.shade50,
                           borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: Colors.grey.shade200),
+                          border: Border.all(color: isDark ? const Color(0xFF2D3748) : Colors.grey.shade200),
                         ),
                         child: SwitchListTile(
                           contentPadding: const EdgeInsets.symmetric(
                               horizontal: 14, vertical: 2),
-                          title: const Text('Administrador / Co-dueño',
+                          title: Text('Administrador / Co-dueño',
                               style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 14,
-                                  color: Color(0xFF1E293B))),
-                          subtitle: const Text(
+                                  color: theme.colorScheme.onSurface)),
+                          subtitle: Text(
                               'Otorga acceso y administración completa al tablero',
                               style:
-                                  TextStyle(fontSize: 11, color: Colors.grey)),
+                                  TextStyle(fontSize: 11, color: isDark ? Colors.grey.shade400 : Colors.grey)),
                           value: esAdminSeleccionado,
                           activeTrackColor: azulCielo,
                           onChanged: puedeEditar && soyCreadorOriginal
@@ -1471,23 +1508,28 @@ class _FormularioTableroState extends State<FormularioTablero>
                         ),
                       ),
 
-                    const Text('Rol Kanban en el Equipo:',
+                    Text('Rol Kanban en el Equipo:',
                         style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 13,
-                            color: Color(0xFF1E293B))),
+                            color: theme.colorScheme.onSurface)),
                     const SizedBox(height: 6),
                     DropdownButtonFormField<String>(
                       initialValue: _roles.contains(rolKanbanSeleccionado)
                           ? rolKanbanSeleccionado
                           : (_roles.isNotEmpty ? _roles.first : 'Programador / Desarrollador'),
                       isExpanded: true,
+                      dropdownColor: theme.cardColor,
                       decoration: InputDecoration(
                         filled: true,
-                        fillColor: Colors.grey.shade50,
+                        fillColor: isDark ? const Color(0xFF121824) : Colors.grey.shade50,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey.shade200),
+                          borderSide: BorderSide(color: isDark ? const Color(0xFF2D3748) : Colors.grey.shade200),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: isDark ? const Color(0xFF2D3748) : Colors.grey.shade200),
                         ),
                         contentPadding: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 12),
@@ -1495,7 +1537,7 @@ class _FormularioTableroState extends State<FormularioTablero>
                       items: _roles.map((rol) {
                         return DropdownMenuItem<String>(
                           value: rol,
-                          child: Text(rol, style: const TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis),
+                          child: Text(rol, style: TextStyle(fontSize: 13, color: theme.colorScheme.onSurface), overflow: TextOverflow.ellipsis),
                         );
                       }).toList(),
                       onChanged: puedeEditar
@@ -1512,11 +1554,11 @@ class _FormularioTableroState extends State<FormularioTablero>
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Permisos Granulares:',
+                        Text('Permisos Granulares:',
                             style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 13,
-                                color: Color(0xFF1E293B))),
+                                color: theme.colorScheme.onSurface)),
                         if (esAdminSeleccionado || isOwner)
                           Text(
                             'Acceso Total',
@@ -1532,9 +1574,9 @@ class _FormularioTableroState extends State<FormularioTablero>
 
                     Container(
                       decoration: BoxDecoration(
-                        color: Colors.grey.shade50,
+                        color: isDark ? const Color(0xFF121824) : Colors.grey.shade50,
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: Colors.grey.shade200),
+                        border: Border.all(color: isDark ? const Color(0xFF2D3748) : Colors.grey.shade200),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1689,20 +1731,23 @@ class _FormularioTableroState extends State<FormularioTablero>
   }
 
   Widget _encabezadoGrupoPermisos(String titulo, IconData icono) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      color: Colors.grey.shade100,
+      color: isDark ? const Color(0xFF1E2638) : Colors.grey.shade100,
       child: Row(
         children: [
           Icon(icono, size: 16, color: azulCielo),
           const SizedBox(width: 6),
           Text(
             titulo,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF1E293B),
+              color: theme.colorScheme.onSurface,
             ),
           ),
         ],
@@ -1717,13 +1762,16 @@ class _FormularioTableroState extends State<FormularioTablero>
     required bool deshabilitado,
     required ValueChanged<bool> onChanged,
   }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return SwitchListTile(
       dense: true,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
       title: Text(titulo,
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: theme.colorScheme.onSurface)),
       subtitle: Text(subtitulo,
-          style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+          style: TextStyle(fontSize: 11, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600)),
       value: valor,
       activeTrackColor: azulCielo,
       onChanged: deshabilitado ? null : onChanged,
@@ -1736,12 +1784,15 @@ class _FormularioTableroState extends State<FormularioTablero>
     required Color colorHeader,
     required Widget child,
   }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: isDark ? const Color(0xFF2D3748) : Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.02),
@@ -1759,10 +1810,10 @@ class _FormularioTableroState extends State<FormularioTablero>
               const SizedBox(width: 10),
               Text(
                 titulo,
-                style: const TextStyle(
+                style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 15,
-                    color: Color(0xFF1E293B)),
+                    color: theme.colorScheme.onSurface),
               ),
             ],
           ),
@@ -1777,27 +1828,30 @@ class _FormularioTableroState extends State<FormularioTablero>
       {required String label,
       required String valor,
       required IconData icono}) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: isDark ? const Color(0xFF121824) : Colors.grey.shade50,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: isDark ? const Color(0xFF2D3748) : Colors.grey.shade200),
       ),
       child: Row(
         children: [
-          Icon(icono, size: 16, color: Colors.grey.shade600),
+          Icon(icono, size: 16, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
           const SizedBox(width: 8),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(label,
-                  style: TextStyle(color: Colors.grey.shade500, fontSize: 10)),
+                  style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade500, fontSize: 10)),
               Text(valor,
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 11,
-                      color: Color(0xFF1E293B))),
+                      color: theme.colorScheme.onSurface)),
             ],
           ),
         ],
@@ -1835,16 +1889,19 @@ class _FormularioTableroState extends State<FormularioTablero>
       {required String pista,
       required IconData icono,
       required Color colorFoco}) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return InputDecoration(
       hintText: pista,
-      hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
-      prefixIcon: Icon(icono, color: Colors.grey.shade400, size: 20),
+      hintStyle: TextStyle(color: isDark ? Colors.grey.shade500 : Colors.grey.shade400, fontSize: 13),
+      prefixIcon: Icon(icono, color: isDark ? Colors.grey.shade400 : Colors.grey.shade400, size: 20),
       filled: true,
-      fillColor: Colors.grey.shade50,
+      fillColor: isDark ? const Color(0xFF121824) : Colors.grey.shade50,
       contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
       enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade200, width: 1)),
+          borderSide: BorderSide(color: isDark ? const Color(0xFF2D3748) : Colors.grey.shade200, width: 1)),
       focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: colorFoco, width: 1.8)),
@@ -1939,6 +1996,8 @@ class _FormularioTableroState extends State<FormularioTablero>
     final TextEditingController emailController = TextEditingController();
     final dialogFormKey = GlobalKey<FormState>();
     String rolSeleccionado = _roles.isNotEmpty ? _roles.first : 'Programador / Desarrollador';
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     showDialog(
       context: context,
@@ -1946,7 +2005,9 @@ class _FormularioTableroState extends State<FormularioTablero>
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              title: const Text("Invitar Miembro por Correo"),
+              backgroundColor: theme.dialogTheme.backgroundColor,
+              title: Text("Invitar Miembro por Correo",
+                  style: TextStyle(color: theme.colorScheme.onSurface, fontWeight: FontWeight.bold, fontSize: 16)),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16)),
               content: SingleChildScrollView(
@@ -1956,17 +2017,17 @@ class _FormularioTableroState extends State<FormularioTablero>
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Correo Institucional:',
+                      Text('Correo Institucional:',
                           style: TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 13)),
+                              fontWeight: FontWeight.bold, fontSize: 13, color: theme.colorScheme.onSurface)),
                       const SizedBox(height: 8),
                       TextFormField(
                         controller: emailController,
-                        decoration: InputDecoration(
-                          hintText: 'ejemplo@e.uttecamac.edu.mx',
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                          prefixIcon: const Icon(Icons.email_outlined),
+                        style: TextStyle(color: theme.colorScheme.onSurface),
+                        decoration: _construirDecoracionInput(
+                          pista: 'ejemplo@e.uttecamac.edu.mx',
+                          icono: Icons.email_outlined,
+                          colorFoco: azulCielo,
                         ),
                         keyboardType: TextInputType.emailAddress,
                         validator: (value) {
@@ -1980,18 +2041,25 @@ class _FormularioTableroState extends State<FormularioTablero>
                         },
                       ),
                       const SizedBox(height: 16),
-                      const Text('Rol Kanban Inicial:',
+                      Text('Rol Kanban Inicial:',
                           style: TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 13)),
+                              fontWeight: FontWeight.bold, fontSize: 13, color: theme.colorScheme.onSurface)),
                       const SizedBox(height: 8),
                       DropdownButtonFormField<String>(
                         initialValue: _roles.contains(rolSeleccionado)
                             ? rolSeleccionado
                             : (_roles.isNotEmpty ? _roles.first : 'Programador / Desarrollador'),
                         isExpanded: true,
+                        dropdownColor: theme.cardColor,
                         decoration: InputDecoration(
+                          filled: true,
+                          fillColor: isDark ? const Color(0xFF121824) : Colors.grey.shade50,
                           border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12)),
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: isDark ? const Color(0xFF2D3748) : Colors.grey.shade200)),
+                          enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: isDark ? const Color(0xFF2D3748) : Colors.grey.shade200)),
                           contentPadding: const EdgeInsets.symmetric(
                               horizontal: 16, vertical: 12),
                         ),
@@ -1999,7 +2067,7 @@ class _FormularioTableroState extends State<FormularioTablero>
                           return DropdownMenuItem<String>(
                             value: rol,
                             child: Text(rol,
-                                style: const TextStyle(fontSize: 13),
+                                style: TextStyle(fontSize: 13, color: theme.colorScheme.onSurface),
                                 overflow: TextOverflow.ellipsis),
                           );
                         }).toList(),
@@ -2016,7 +2084,7 @@ class _FormularioTableroState extends State<FormularioTablero>
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancelar'),
+                  child: Text('Cancelar', style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600)),
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(

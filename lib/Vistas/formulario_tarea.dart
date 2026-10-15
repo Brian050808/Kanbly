@@ -306,9 +306,10 @@ class _FormularioTareaState extends State<FormularioTarea> {
                       onPressed: () async {
                         final fecha = await showDatePicker(
                           context: context,
-                          initialDate: DateTime.now(),
+                          initialDate: _fechaVencimiento ?? DateTime.now(),
                           firstDate: DateTime.now(),
                           lastDate: DateTime(2030),
+                          locale: Localizations.localeOf(context),
                         );
                         if (fecha != null) {
                           setState(() => _fechaVencimiento = fecha);

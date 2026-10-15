@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kanbly/controlador/theme_controller.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('ThemeProvider - Pruebas de Tema Claro y Oscuro', () {
+    setUp(() {
+      SharedPreferences.setMockInitialValues({});
+    });
+
     test('Inicialmente el tema es Claro por defecto', () {
       final provider = ThemeProvider();
       expect(provider.themeMode, ThemeMode.light);
@@ -11,7 +18,14 @@ void main() {
       expect(provider.isDarkMode, false);
     });
 
-    test('Cambiar a Tema Oscuro actualiza themeMode e isDarkMode', () {
+    test('Inicializar con initialTheme aplica el tema guardado directamente', () {
+      final provider = ThemeProvider(initialTheme: 'Oscuro');
+      expect(provider.themeMode, ThemeMode.dark);
+      expect(provider.themeString, 'Oscuro');
+      expect(provider.isDarkMode, true);
+    });
+
+    test('Cambiar a Tema Oscuro actualiza themeMode e isDarkMode y persiste', () async {
       final provider = ThemeProvider();
       bool notificado = false;
       provider.addListener(() {
@@ -24,6 +38,9 @@ void main() {
       expect(provider.themeString, 'Oscuro');
       expect(provider.isDarkMode, true);
       expect(notificado, true);
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('theme_preference'), 'Oscuro');
     });
 
     test('Cambiar a Tema Sistema actualiza themeMode a system', () {
