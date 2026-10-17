@@ -97,6 +97,67 @@ class AdjuntoTarea {
   }
 }
 
+/// Representa un comentario de retroalimentación u observación en una tarea
+class ComentarioTarea {
+  final String id;
+  final String autorId;
+  final String autorNombre;
+  final String? autorFotoUrl;
+  final String contenido;
+  final DateTime fechaCreacion;
+
+  const ComentarioTarea({
+    required this.id,
+    required this.autorId,
+    required this.autorNombre,
+    this.autorFotoUrl,
+    required this.contenido,
+    required this.fechaCreacion,
+  });
+
+  factory ComentarioTarea.fromMap(Map<String, dynamic> map) {
+    return ComentarioTarea(
+      id: map['id']?.toString() ?? '',
+      autorId: map['autorId']?.toString() ?? '',
+      autorNombre: map['autorNombre']?.toString() ?? 'Integrante',
+      autorFotoUrl: map['autorFotoUrl']?.toString(),
+      contenido: map['contenido']?.toString() ?? '',
+      fechaCreacion: map['fechaCreacion'] is Timestamp
+          ? (map['fechaCreacion'] as Timestamp).toDate()
+          : DateTime.tryParse(map['fechaCreacion']?.toString() ?? '') ?? DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'autorId': autorId,
+      'autorNombre': autorNombre,
+      'autorFotoUrl': autorFotoUrl,
+      'contenido': contenido,
+      'fechaCreacion': Timestamp.fromDate(fechaCreacion),
+    };
+  }
+
+  ComentarioTarea copyWith({
+    String? id,
+    String? autorId,
+    String? autorNombre,
+    String? autorFotoUrl,
+    String? contenido,
+    DateTime? fechaCreacion,
+  }) {
+    return ComentarioTarea(
+      id: id ?? this.id,
+      autorId: autorId ?? this.autorId,
+      autorNombre: autorNombre ?? this.autorNombre,
+      autorFotoUrl: autorFotoUrl ?? this.autorFotoUrl,
+      contenido: contenido ?? this.contenido,
+      fechaCreacion: fechaCreacion ?? this.fechaCreacion,
+    );
+  }
+}
+
 class Tarea {
   final String id;
   final String titulo;
@@ -105,16 +166,20 @@ class Tarea {
   final String estadoNombre;
   final int orden;
   final String tableroId;
-  final String? asignadoA;
+  final List<String> asignadosA;
   final DateTime fechaCreacion;
   final DateTime? fechaVencimiento;
   final DateTime? fechaActualizacion;
   final List<String> etiquetas;
   final List<AdjuntoTarea> adjuntos;
+  final List<ComentarioTarea> comentarios;
   final int prioridad; // 1 = baja, 2 = media, 3 = alta
   final bool archivada;
   final String? creadaPor;
   final String? comentario;
+
+  /// Retorna el primer integrante asignado para compatibilidad con código legacy
+  String? get asignadoA => asignadosA.isNotEmpty ? asignadosA.first : null;
 
   Tarea({
     required this.id,
@@ -124,17 +189,20 @@ class Tarea {
     String? estadoNombre,
     this.orden = 0,
     required this.tableroId,
-    this.asignadoA,
+    List<String>? asignadosA,
+    String? asignadoA,
     required this.fechaCreacion,
     this.fechaVencimiento,
     this.fechaActualizacion,
     this.etiquetas = const [],
     this.adjuntos = const [],
+    this.comentarios = const [],
     this.prioridad = 2,
     this.archivada = false,
     this.creadaPor,
     this.comentario,
-  }) : estadoNombre = estadoNombre ?? (estado.value);
+  })  : estadoNombre = estadoNombre ?? (estado.value),
+        asignadosA = asignadosA ?? (asignadoA != null ? [asignadoA] : const []);
 
   static int _parsePrioridad(dynamic val) {
     if (val == null) return 2;
@@ -181,6 +249,22 @@ class Tarea {
       }
     }
 
+    List<ComentarioTarea> comentariosList = [];
+    if (map['comentarios'] != null && map['comentarios'] is List) {
+      for (final item in (map['comentarios'] as List)) {
+        if (item is Map) {
+          comentariosList.add(ComentarioTarea.fromMap(Map<String, dynamic>.from(item)));
+        }
+      }
+    }
+
+    List<String> asignadosList = [];
+    if (map['asignadosA'] != null && map['asignadosA'] is List) {
+      asignadosList = List<String>.from(map['asignadosA']);
+    } else if (map['asignadoA'] != null && map['asignadoA'].toString().trim().isNotEmpty) {
+      asignadosList = [map['asignadoA'].toString()];
+    }
+
     return Tarea(
       id: id,
       titulo: tituloStr.trim().isNotEmpty ? tituloStr : 'Tarea sin título',
@@ -189,12 +273,13 @@ class Tarea {
       estadoNombre: estadoStr,
       orden: _parseInt(map['orden']),
       tableroId: map['tableroId']?.toString() ?? '',
-      asignadoA: map['asignadoA']?.toString(),
+      asignadosA: asignadosList,
       fechaCreacion: _parseFecha(map['fechaCreacion']) ?? DateTime.now(),
       fechaVencimiento: _parseFecha(map['fechaVencimiento']),
       fechaActualizacion: _parseFecha(map['fechaActualizacion']),
       etiquetas: List<String>.from(map['etiquetas'] ?? []),
       adjuntos: adjuntosList,
+      comentarios: comentariosList,
       prioridad: _parsePrioridad(map['prioridad']),
       archivada: map['archivada'] ?? false,
       creadaPor: map['creadaPor']?.toString(),
@@ -209,6 +294,7 @@ class Tarea {
       'estado': estadoNombre,
       'orden': orden,
       'tableroId': tableroId,
+      'asignadosA': asignadosA,
       'asignadoA': asignadoA,
       'fechaCreacion': Timestamp.fromDate(fechaCreacion),
       'fechaVencimiento': fechaVencimiento != null
@@ -219,6 +305,7 @@ class Tarea {
           : null,
       'etiquetas': etiquetas,
       'adjuntos': adjuntos.map((a) => a.toMap()).toList(),
+      'comentarios': comentarios.map((c) => c.toMap()).toList(),
       'prioridad': prioridad,
       'archivada': archivada,
       'creadaPor': creadaPor,
@@ -234,12 +321,14 @@ class Tarea {
     String? estadoNombre,
     int? orden,
     String? tableroId,
+    List<String>? asignadosA,
     String? asignadoA,
     DateTime? fechaCreacion,
     DateTime? fechaVencimiento,
     DateTime? fechaActualizacion,
     List<String>? etiquetas,
     List<AdjuntoTarea>? adjuntos,
+    List<ComentarioTarea>? comentarios,
     int? prioridad,
     bool? archivada,
     String? creadaPor,
@@ -253,12 +342,13 @@ class Tarea {
       estadoNombre: estadoNombre ?? (estado != null ? estado.value : this.estadoNombre),
       orden: orden ?? this.orden,
       tableroId: tableroId ?? this.tableroId,
-      asignadoA: asignadoA ?? this.asignadoA,
+      asignadosA: asignadosA ?? (asignadoA != null ? [asignadoA] : this.asignadosA),
       fechaCreacion: fechaCreacion ?? this.fechaCreacion,
       fechaVencimiento: fechaVencimiento ?? this.fechaVencimiento,
       fechaActualizacion: fechaActualizacion ?? this.fechaActualizacion,
       etiquetas: etiquetas ?? this.etiquetas,
       adjuntos: adjuntos ?? this.adjuntos,
+      comentarios: comentarios ?? this.comentarios,
       prioridad: prioridad ?? this.prioridad,
       archivada: archivada ?? this.archivada,
       creadaPor: creadaPor ?? this.creadaPor,

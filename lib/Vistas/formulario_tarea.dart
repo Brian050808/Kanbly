@@ -10,7 +10,7 @@ import '../modelo/tablero.dart';
 import '../modelo/usuario.dart';
 import '../servicios/firestore_service.dart';
 import '../servicios/storage_service.dart';
-import 'pantalla_visualizador_adjunto.dart';
+
 
 class FormularioTarea extends StatefulWidget {
   final Tablero tablero;
@@ -32,18 +32,16 @@ class _FormularioTareaState extends State<FormularioTarea> {
   final _descController = TextEditingController();
   final FirestoreService _firestoreService = FirestoreService();
 
-  // Variables de estado del formulario
   late List<String> _columnasDisponibles;
   late String _columnaSeleccionada;
   int _prioridadSeleccionada = 2; // 1 = Baja, 2 = Media, 3 = Alta
   DateTime? _fechaVencimiento;
-  String? _asignadoA; // ID del integrante asignado
+  List<String> _asignadosA = [];
   List<Usuario> _miembrosEquipo = [];
-  List<AdjuntoTarea> _adjuntosSeleccionados = [];
+  final List<AdjuntoTarea> _adjuntosSeleccionados = [];
   bool _cargandoMiembros = false;
   bool _guardando = false;
 
-  // Límite máximo de tamaño por archivo: 10 MB (10 * 1024 * 1024 bytes)
   static const int _maxTamanoBytes = 10 * 1024 * 1024;
 
   @override
@@ -90,19 +88,25 @@ class _FormularioTareaState extends State<FormularioTarea> {
 
   @override
   Widget build(BuildContext context) {
-    const Color textoPrincipal = Color(0xFF1E293B);
+    final theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
+    final Color textoPrincipal = theme.colorScheme.onSurface;
     const Color azulCielo = Color(0xFF52ABEB);
     const Color verdeTurquesa = Color(0xFF63D0A1);
     const Color rojoAlta = Color(0xFFE53E3E);
     const Color naranjaMedia = Color(0xFFED8936);
     const Color verdeBaja = Color(0xFF38A169);
 
-    return Padding(
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-        left: 24,
-        right: 24,
-        top: 24,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+        left: 20,
+        right: 20,
+        top: 18,
       ),
       child: Form(
         key: _formKey,
@@ -111,26 +115,46 @@ class _FormularioTareaState extends State<FormularioTarea> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // --- TÍTULO DEL MODAL ---
-              Text(
-                'Nueva Tarea en:\n${widget.tablero.nombre}',
-                style: GoogleFonts.inter(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: textoPrincipal,
-                ),
+              // ENCABEZADO LIMPIO
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Nueva Tarea',
+                        style: GoogleFonts.inter(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: textoPrincipal,
+                        ),
+                      ),
+                      Text(
+                        widget.tablero.nombre,
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                      ),
+                    ],
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, color: Colors.grey),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
 
-              // --- CAMPO: TÍTULO DE LA TAREA ---
+              // CAMPO TÍTULO
               TextFormField(
                 controller: _tituloController,
+                style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600, color: textoPrincipal),
                 decoration: InputDecoration(
                   labelText: 'Título de la tarea *',
-                  hintText: 'Ej. Diseñar prototipo en Figma...',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  hintText: 'Ej. Diseñar prototipo...',
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                   filled: true,
-                  fillColor: Colors.grey.shade50,
+                  fillColor: isDark ? const Color(0xFF182030) : const Color(0xFFF8FAFC),
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
@@ -139,222 +163,172 @@ class _FormularioTareaState extends State<FormularioTarea> {
                   return null;
                 },
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
 
-              // --- CAMPO: DESCRIPCIÓN ---
+              // CAMPO DESCRIPCIÓN
               TextFormField(
                 controller: _descController,
-                maxLines: 3,
+                minLines: 2,
+                maxLines: 4,
+                style: GoogleFonts.inter(fontSize: 13, color: textoPrincipal, height: 1.4),
                 decoration: InputDecoration(
-                  labelText: 'Descripción detallada (Opcional)',
-                  hintText: 'Especificaciones, requerimientos...',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  labelText: 'Descripción (Opcional)',
+                  hintText: 'Detalles o especificaciones...',
+                  contentPadding: const EdgeInsets.all(12),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                   filled: true,
-                  fillColor: Colors.grey.shade50,
+                  fillColor: isDark ? const Color(0xFF182030) : const Color(0xFFF8FAFC),
                 ),
               ),
               const SizedBox(height: 14),
 
-              // --- DROPDOWN: SELECCIÓN DE COLUMNA/ESTADO ---
-              DropdownButtonFormField<String>(
-                value: _columnaSeleccionada,
-                isExpanded: true,
-                decoration: InputDecoration(
-                  labelText: 'Columna / Estado inicial',
-                  prefixIcon: const Icon(Icons.view_column_outlined, color: azulCielo),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  filled: true,
-                  fillColor: Colors.grey.shade50,
-                ),
-                items: _columnasDisponibles.map((colNombre) {
-                  return DropdownMenuItem<String>(
-                    value: colNombre,
-                    child: Text(
-                      colNombre,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                  );
-                }).toList(),
-                onChanged: (val) {
-                  if (val != null) setState(() => _columnaSeleccionada = val);
-                },
-              ),
-              const SizedBox(height: 14),
-
-              // --- ASIGNACIÓN DE INTEGRANTE EN TABLEROS DE EQUIPO ---
-              if (widget.tablero.esGrupal) ...[
-                if (_cargandoMiembros)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8.0),
-                    child: LinearProgressIndicator(),
-                  )
-                else
-                  DropdownButtonFormField<String?>(
-                    value: _asignadoA,
-                    isExpanded: true,
-                    decoration: InputDecoration(
-                      labelText: 'Asignar a integrante del equipo',
-                      prefixIcon: const Icon(Icons.person_add_outlined, color: azulCielo),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      filled: true,
-                      fillColor: Colors.grey.shade50,
-                    ),
-                    items: [
-                      const DropdownMenuItem<String?>(
-                        value: null,
-                        child: Text(
-                          'Sin asignar',
-                          style: TextStyle(color: Colors.grey),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      ..._miembrosEquipo.map((miembro) {
-                        final infoRole = widget.tablero.miembrosInfo[miembro.id]?.rolKanban ?? miembro.rol;
-                        return DropdownMenuItem<String?>(
-                          value: miembro.id,
-                          child: Text(
-                            '${miembro.nombreCompleto} ($infoRole)',
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                          ),
-                        );
-                      }),
-                    ],
-                    onChanged: (val) {
-                      setState(() => _asignadoA = val);
-                    },
-                  ),
-                const SizedBox(height: 14),
-              ],
-
-              // --- BOTÓN: FECHA DE VENCIMIENTO ---
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  side: BorderSide(color: Colors.grey.shade300),
-                ),
-                icon: const Icon(Icons.calendar_today_rounded, size: 18, color: textoPrincipal),
-                label: Text(
-                  _fechaVencimiento == null
-                      ? 'Asignar Fecha de Entrega'
-                      : 'Entrega: ${_fechaVencimiento!.day}/${_fechaVencimiento!.month}/${_fechaVencimiento!.year}',
-                  style: const TextStyle(color: textoPrincipal, fontWeight: FontWeight.w600),
-                ),
-                onPressed: () async {
-                  final fecha = await showDatePicker(
-                    context: context,
-                    initialDate: DateTime.now(),
-                    firstDate: DateTime.now(),
-                    lastDate: DateTime(2030),
-                  );
-                  if (fecha != null) {
-                    setState(() => _fechaVencimiento = fecha);
-                  }
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // --- SECCIÓN: ARCHIVOS ADJUNTOS (MÁX. 10MB) ---
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Archivos Adjuntos (Máx. 10MB):',
-                    style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: textoPrincipal),
-                  ),
-                  TextButton.icon(
-                    onPressed: _mostrarMenuAdjuntarArchivo,
-                    icon: const Icon(Icons.attach_file_rounded, size: 18, color: azulCielo),
-                    label: const Text('Adjuntar', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: azulCielo)),
-                  ),
-                ],
-              ),
+              // SELECTOR HORIZONTAL DE COLUMNA / ESTADO
+              Text('Columna Destino:', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: textoPrincipal)),
               const SizedBox(height: 6),
-
-              // LISTA DE ADJUNTOS SELECCIONADOS
-              if (_adjuntosSeleccionados.isEmpty)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade200, style: BorderStyle.solid),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.cloud_upload_outlined, color: Colors.grey.shade400, size: 20),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'No hay archivos adjuntos aún.\nHaz clic en "Adjuntar" para subir imágenes, documentos o videos (máx. 10MB).',
-                          style: TextStyle(color: Colors.grey.shade500, fontSize: 11),
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              else
-                Column(
-                  children: _adjuntosSeleccionados.asMap().entries.map((entry) {
-                    final idx = entry.key;
-                    final adjunto = entry.value;
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: _columnasDisponibles.map((col) {
+                    final seleccionada = _columnaSeleccionada == col;
                     return GestureDetector(
-                      onTap: () => PantallaVisualizadorAdjunto.abrir(context, adjunto),
+                      onTap: () => setState(() => _columnaSeleccionada = col),
                       child: Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        margin: const EdgeInsets.only(right: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade50,
+                          color: seleccionada ? azulCielo : (isDark ? const Color(0xFF182030) : const Color(0xFFF1F5F9)),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey.shade300),
+                          border: Border.all(color: seleccionada ? azulCielo : (isDark ? const Color(0xFF2D3748) : Colors.grey.shade300)),
                         ),
-                        child: Row(
-                          children: [
-                            _obtenerIconoTipoAdjunto(adjunto.tipo, adjunto.nombre),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    adjunto.nombre,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: textoPrincipal),
-                                  ),
-                                  Text(
-                                    '${adjunto.tipo.toUpperCase()} • ${adjunto.tamanoLegible} • Haz clic para ver',
-                                    style: TextStyle(color: Colors.grey.shade600, fontSize: 10),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.close_rounded, size: 18, color: Colors.redAccent),
-                              tooltip: 'Quitar archivo',
-                              onPressed: () {
-                                setState(() {
-                                  _adjuntosSeleccionados.removeAt(idx);
-                                });
-                              },
-                            ),
-                          ],
+                        child: Text(
+                          col,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: seleccionada ? Colors.white : textoPrincipal,
+                          ),
                         ),
                       ),
                     );
                   }).toList(),
                 ),
-              const SizedBox(height: 16),
-
-              // --- SELECTOR: PRIORIDAD (NIVEL DE IMPORTANCIA) ---
-              Text(
-                'Nivel de Importancia (Prioridad):',
-                style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: textoPrincipal),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 14),
+
+              // ASIGNAR INTEGRANTE(S)
+              if (widget.tablero.esGrupal) ...[
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Asignar Integrantes:', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: textoPrincipal)),
+                    Text(
+                      _asignadosA.isEmpty
+                          ? 'Sin asignar (0)'
+                          : '${_asignadosA.length} persona${_asignadosA.length > 1 ? "s" : ""}',
+                      style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: _asignadosA.isEmpty ? Colors.grey : azulCielo),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                _cargandoMiembros
+                    ? const LinearProgressIndicator()
+                    : _miembrosEquipo.isEmpty
+                        ? Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Text('No hay integrantes en este tablero.', style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+                          )
+                        : Wrap(
+                            spacing: 8,
+                            runSpacing: 6,
+                            children: _miembrosEquipo.map((miembro) {
+                              final estaSeleccionado = _asignadosA.contains(miembro.id);
+                              return FilterChip(
+                                avatar: CircleAvatar(
+                                  backgroundColor: estaSeleccionado ? Colors.white : (isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+                                  child: Text(
+                                    miembro.nombreCompleto.isNotEmpty ? miembro.nombreCompleto[0].toUpperCase() : '?',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: estaSeleccionado ? azulCielo : (isDark ? Colors.grey.shade300 : Colors.grey.shade700),
+                                    ),
+                                  ),
+                                ),
+                                label: Text(
+                                  miembro.nombreCompleto,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: estaSeleccionado ? FontWeight.bold : FontWeight.normal,
+                                    color: estaSeleccionado ? Colors.white : textoPrincipal,
+                                  ),
+                                ),
+                                selected: estaSeleccionado,
+                                selectedColor: azulCielo,
+                                checkmarkColor: Colors.white,
+                                backgroundColor: isDark ? const Color(0xFF182030) : const Color(0xFFF8FAFC),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  side: BorderSide(
+                                    color: estaSeleccionado ? azulCielo : (isDark ? const Color(0xFF2D3748) : Colors.grey.shade300),
+                                  ),
+                                ),
+                                onSelected: (bool selected) {
+                                  setState(() {
+                                    if (selected) {
+                                      _asignadosA.add(miembro.id);
+                                    } else {
+                                      _asignadosA.remove(miembro.id);
+                                    }
+                                  });
+                                },
+                              );
+                            }).toList(),
+                          ),
+                const SizedBox(height: 14),
+              ],
+
+              // FECHA DE ENTREGA Y PRIORIDAD
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      icon: Icon(Icons.calendar_today_rounded, size: 15, color: textoPrincipal),
+                      label: Text(
+                        _fechaVencimiento == null
+                            ? 'Fecha Entrega'
+                            : '${_fechaVencimiento!.day}/${_fechaVencimiento!.month}/${_fechaVencimiento!.year}',
+                        style: TextStyle(color: textoPrincipal, fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                      onPressed: () async {
+                        final fecha = await showDatePicker(
+                          context: context,
+                          initialDate: _fechaVencimiento ?? DateTime.now(),
+                          firstDate: DateTime.now(),
+                          lastDate: DateTime(2030),
+                          locale: Localizations.localeOf(context),
+                        );
+                        if (fecha != null) {
+                          setState(() => _fechaVencimiento = fecha);
+                        }
+                      },
+                    ),
+                  ),
+                  if (_fechaVencimiento != null)
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, color: Colors.redAccent, size: 20),
+                      onPressed: () => setState(() => _fechaVencimiento = null),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 10),
+
+              // PRIORIDAD (BAJA, MEDIA, ALTA)
+              Text('Prioridad:', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: textoPrincipal)),
+              const SizedBox(height: 6),
               Row(
                 children: [
                   _botonPrioridad(1, 'Baja', verdeBaja),
@@ -362,36 +336,79 @@ class _FormularioTareaState extends State<FormularioTarea> {
                   _botonPrioridad(3, 'Alta', rojoAlta),
                 ],
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 14),
 
-              // --- BOTÓN GUARDAR ---
+              // SECCIÓN ARCHIVOS ADJUNTOS
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Archivos Adjuntos (${_adjuntosSeleccionados.length}):',
+                    style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: textoPrincipal),
+                  ),
+                  TextButton.icon(
+                    onPressed: _mostrarMenuAdjuntarArchivo,
+                    icon: const Icon(Icons.attach_file_rounded, size: 16, color: azulCielo),
+                    label: const Text('Adjuntar', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: azulCielo)),
+                  ),
+                ],
+              ),
+              if (_adjuntosSeleccionados.isNotEmpty)
+                Column(
+                  children: _adjuntosSeleccionados.asMap().entries.map((entry) {
+                    final idx = entry.key;
+                    final adjunto = entry.value;
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Row(
+                        children: [
+                          _obtenerIconoTipoAdjunto(adjunto.tipo, adjunto.nombre),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              adjunto.nombre,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textoPrincipal),
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close_rounded, size: 16, color: Colors.redAccent),
+                            onPressed: () => setState(() => _adjuntosSeleccionados.removeAt(idx)),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
+              const SizedBox(height: 18),
+
+              // BOTÓN CREAR TAREA
               SizedBox(
                 width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
+                height: 46,
+                child: ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: verdeTurquesa,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    elevation: 2,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    elevation: 0,
+                  ),
+                  icon: _guardando
+                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Icon(Icons.add_task_rounded, color: Colors.white, size: 20),
+                  label: Text(
+                    _guardando ? 'Creando...' : 'Crear Tarea',
+                    style: GoogleFonts.inter(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
                   ),
                   onPressed: _guardando ? null : _guardarNuevaTarea,
-                  child: _guardando
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
-                        )
-                      : Text(
-                          'Crear Tarea',
-                          style: GoogleFonts.inter(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
                 ),
               ),
-              const SizedBox(height: 24),
             ],
           ),
         ),
@@ -399,30 +416,26 @@ class _FormularioTareaState extends State<FormularioTarea> {
     );
   }
 
-  // --- SELECCIÓN Y VALIDACIÓN DE ARCHIVOS ADJUNTOS CON LÍMITE DE 10MB ---
   void _mostrarMenuAdjuntarArchivo() {
+    final theme = Theme.of(context);
+
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      backgroundColor: theme.cardColor,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) {
         return SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+            padding: const EdgeInsets.all(16),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Seleccionar Tipo de Archivo (Máx. 10MB):',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1E293B)),
-                ),
+                Text('Adjuntar Archivo (Máx. 10MB):', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: theme.colorScheme.onSurface)),
                 const SizedBox(height: 12),
                 ListTile(
                   leading: const CircleAvatar(backgroundColor: Color(0xFFEBF8FF), child: Icon(Icons.image_rounded, color: Color(0xFF52ABEB))),
-                  title: const Text('Imagen / Foto'),
-                  subtitle: const Text('PNG, JPG, WEBP'),
+                  title: const Text('Imagen'),
                   onTap: () {
                     Navigator.pop(context);
                     _seleccionarArchivo(FileType.image, 'imagen');
@@ -431,36 +444,17 @@ class _FormularioTareaState extends State<FormularioTarea> {
                 ListTile(
                   leading: const CircleAvatar(backgroundColor: Color(0xFFFFF5F5), child: Icon(Icons.videocam_rounded, color: Colors.redAccent)),
                   title: const Text('Video'),
-                  subtitle: const Text('MP4, MOV, AVI'),
                   onTap: () {
                     Navigator.pop(context);
                     _seleccionarArchivo(FileType.video, 'video');
                   },
                 ),
                 ListTile(
-                  leading: const CircleAvatar(backgroundColor: Color(0xFFFFF3ED), child: Icon(Icons.slideshow_rounded, color: Color(0xFFC43E1C))),
-                  title: const Text('Presentación PowerPoint'),
-                  subtitle: const Text('PPT, PPTX'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _seleccionarArchivo(FileType.custom, 'documento', extensiones: ['pptx', 'ppt']);
-                  },
-                ),
-                ListTile(
                   leading: const CircleAvatar(backgroundColor: Color(0xFFF0FDF4), child: Icon(Icons.description_rounded, color: Color(0xFF63D0A1))),
                   title: const Text('Documento / PDF'),
-                  subtitle: const Text('PDF, DOC, DOCX, XLSX, TXT'),
                   onTap: () {
                     Navigator.pop(context);
-                    _seleccionarArchivo(FileType.custom, 'documento', extensiones: ['pdf', 'doc', 'docx', 'txt', 'xls', 'xlsx', 'csv', 'pptx', 'ppt']);
-                  },
-                ),
-                ListTile(
-                  leading: const CircleAvatar(backgroundColor: Color(0xFFF1F5F9), child: Icon(Icons.folder_open_rounded, color: Colors.blueGrey)),
-                  title: const Text('Cualquier Archivo'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _seleccionarArchivo(FileType.any, 'documento');
+                    _seleccionarArchivo(FileType.custom, 'documento', extensiones: ['pdf', 'doc', 'docx', 'txt', 'xls', 'xlsx', 'pptx', 'ppt']);
                   },
                 ),
               ],
@@ -483,7 +477,6 @@ class _FormularioTareaState extends State<FormularioTarea> {
         for (final file in result.files) {
           final tamano = file.size;
 
-          // VALIDACIÓN STRICTA DEL LÍMITE DE 10 MB
           if (tamano > _maxTamanoBytes) {
             final tamanoMB = (tamano / (1024 * 1024)).toStringAsFixed(1);
             if (mounted) {
@@ -491,14 +484,12 @@ class _FormularioTareaState extends State<FormularioTarea> {
                 SnackBar(
                   content: Text('El archivo "${file.name}" excede el límite permitido de 10 MB ($tamanoMB MB)'),
                   backgroundColor: Colors.redAccent,
-                  duration: const Duration(seconds: 4),
                 ),
               );
             }
             continue;
           }
 
-          // Determinar tipo real
           String tipoReal = tipoEtiqueta;
           final ext = file.extension?.toLowerCase() ?? '';
           if (['jpg', 'jpeg', 'png', 'webp', 'gif'].contains(ext)) {
@@ -534,72 +525,36 @@ class _FormularioTareaState extends State<FormularioTarea> {
     final nameLower = (nombre ?? '').toLowerCase();
     final tipoLower = tipo.toLowerCase();
 
-    if (nameLower.endsWith('.pptx') || nameLower.endsWith('.ppt')) {
-      return Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(color: const Color(0xFFC43E1C).withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
-        child: const Icon(Icons.slideshow_rounded, color: Color(0xFFC43E1C), size: 20),
-      );
-    } else if (nameLower.endsWith('.xlsx') || nameLower.endsWith('.xls') || nameLower.endsWith('.csv')) {
-      return Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(color: const Color(0xFF107C41).withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
-        child: const Icon(Icons.table_chart_rounded, color: Color(0xFF107C41), size: 20),
-      );
-    } else if (nameLower.endsWith('.docx') || nameLower.endsWith('.doc')) {
-      return Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(color: const Color(0xFF2B579A).withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
-        child: const Icon(Icons.description_rounded, color: Color(0xFF2B579A), size: 20),
-      );
-    } else if (nameLower.endsWith('.pdf')) {
-      return Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(color: const Color(0xFFD32F2F).withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
-        child: const Icon(Icons.picture_as_pdf_rounded, color: Color(0xFFD32F2F), size: 20),
-      );
-    } else if (tipoLower == 'imagen' || ['.jpg', '.jpeg', '.png', '.webp', '.gif'].any((ext) => nameLower.endsWith(ext))) {
-      return Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(color: const Color(0xFF52ABEB).withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
-        child: const Icon(Icons.image_rounded, color: Color(0xFF52ABEB), size: 20),
-      );
-    } else if (tipoLower == 'video' || ['.mp4', '.mov', '.avi', '.mkv'].any((ext) => nameLower.endsWith(ext))) {
-      return Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(color: Colors.redAccent.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
-        child: const Icon(Icons.videocam_rounded, color: Colors.redAccent, size: 20),
-      );
+    if (nameLower.endsWith('.pdf')) {
+      return const Icon(Icons.picture_as_pdf_rounded, color: Color(0xFFD32F2F), size: 18);
+    } else if (tipoLower == 'imagen' || ['.jpg', '.jpeg', '.png', '.webp'].any((ext) => nameLower.endsWith(ext))) {
+      return const Icon(Icons.image_rounded, color: Color(0xFF52ABEB), size: 18);
+    } else if (tipoLower == 'video' || ['.mp4', '.mov', '.avi'].any((ext) => nameLower.endsWith(ext))) {
+      return const Icon(Icons.videocam_rounded, color: Colors.redAccent, size: 18);
     }
-
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(color: const Color(0xFF63D0A1).withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
-      child: const Icon(Icons.description_rounded, color: Color(0xFF63D0A1), size: 20),
-    );
+    return const Icon(Icons.description_rounded, color: Color(0xFF63D0A1), size: 18);
   }
 
-  // --- WIDGET AUXILIAR PARA BOTONES DE PRIORIDAD ---
   Widget _botonPrioridad(int valor, String texto, Color color) {
     final activo = _prioridadSeleccionada == valor;
     return Expanded(
       child: GestureDetector(
         onTap: () => setState(() => _prioridadSeleccionada = valor),
         child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 4),
-          padding: const EdgeInsets.symmetric(vertical: 10),
+          margin: const EdgeInsets.symmetric(horizontal: 3),
+          padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
-            color: activo ? color : color.withOpacity(0.1),
+            color: activo ? color : color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: color, width: activo ? 2 : 1),
+            border: Border.all(color: color, width: activo ? 1.8 : 1),
           ),
           alignment: Alignment.center,
           child: Text(
             texto,
             style: TextStyle(
-              color: activo ? Colors.white : const Color(0xFF1E293B),
+              color: activo ? Colors.white : Theme.of(context).colorScheme.onSurface,
               fontWeight: FontWeight.bold,
-              fontSize: 13,
+              fontSize: 12,
             ),
           ),
         ),
@@ -607,7 +562,6 @@ class _FormularioTareaState extends State<FormularioTarea> {
     );
   }
 
-  // --- LÓGICA DE GUARDADO CON FIRESTORE SERVICE ---
   void _guardarNuevaTarea() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _guardando = true);
@@ -615,7 +569,6 @@ class _FormularioTareaState extends State<FormularioTarea> {
       try {
         final userId = FirebaseAuth.instance.currentUser?.uid ?? 'usuario_anonimo';
 
-        // 1. Verificar el límite de 10 tareas por columna
         final tareasActuales = await _firestoreService.obtenerTareasDeTablero(widget.tablero.id);
         final tareasEnColumna = tareasActuales.where((t) {
           return t.estadoNombre == _columnaSeleccionada || t.estado.value == _columnaSeleccionada;
@@ -634,7 +587,6 @@ class _FormularioTareaState extends State<FormularioTarea> {
           return;
         }
 
-        // 2. Generar el ID de la tarea y subir adjuntos locales a Firebase Storage
         final tareaId = FirebaseFirestore.instance.collection('tareas').doc().id;
 
         List<AdjuntoTarea> adjuntosSubidos = [];
@@ -659,7 +611,6 @@ class _FormularioTareaState extends State<FormularioTarea> {
           }
         }
 
-        // 3. Instanciamos el modelo Tarea con los datos del formulario e incluyendo los adjuntos subidos a la nube
         final enumEstado = EstadoTareaExtension.fromString(_columnaSeleccionada);
         final nuevaTarea = Tarea(
           id: tareaId,
@@ -669,7 +620,7 @@ class _FormularioTareaState extends State<FormularioTarea> {
           estadoNombre: _columnaSeleccionada,
           orden: 0,
           tableroId: widget.tablero.id,
-          asignadoA: _asignadoA,
+          asignadosA: _asignadosA,
           fechaCreacion: DateTime.now(),
           fechaVencimiento: _fechaVencimiento,
           prioridad: _prioridadSeleccionada,
@@ -678,7 +629,6 @@ class _FormularioTareaState extends State<FormularioTarea> {
           creadaPor: userId,
         );
 
-        // 4. Subimos la tarea a Firestore
         await _firestoreService.crearTareaConId(nuevaTarea);
 
         if (mounted) {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kanbly/modelo/tablero.dart';
 import 'package:kanbly/modelo/tarea.dart';
+import 'package:kanbly/modelo/borrador_nota.dart';
 import 'package:kanbly/utilerias/formato_util.dart';
 
 void main() {
@@ -53,31 +54,61 @@ void main() {
       expect(colorBaja, equals(const Color(0xFF38A169))); // Verde
     });
 
-    test('3. Tareas en tableros de equipo soportan asignación de integrante', () {
-      final tarea = Tarea(
+    test('3. Tareas soportan asignación de 0, 1 o múltiples integrantes', () {
+      // 3a. Tarea sin asignar (0 integrantes)
+      final tareaSinAsignar = Tarea(
+        id: 't0',
+        titulo: 'Tarea sin asignar',
+        tableroId: 'b2',
+        fechaCreacion: DateTime.now(),
+      );
+      expect(tareaSinAsignar.asignadosA, isEmpty);
+      expect(tareaSinAsignar.asignadoA, isNull);
+
+      // 3b. Tarea con 1 integrante asignado
+      final tareaUnAsignado = Tarea(
         id: 't1',
         titulo: 'Diseño de la Arquitectura',
         tableroId: 'b2',
-        asignadoA: 'user_dev_1',
+        asignadosA: ['user_dev_1'],
         fechaCreacion: DateTime.now(),
         prioridad: 3,
         estadoNombre: 'En Desarrollo',
       );
 
-      expect(tarea.asignadoA, equals('user_dev_1'));
-      expect(tarea.estadoNombre, equals('En Desarrollo'));
-      expect(tarea.prioridad, equals(3));
+      expect(tareaUnAsignado.asignadosA, equals(['user_dev_1']));
+      expect(tareaUnAsignado.asignadoA, equals('user_dev_1'));
+      expect(tareaUnAsignado.estadoNombre, equals('En Desarrollo'));
 
-      final map = tarea.toMap();
-      expect(map['asignadoA'], equals('user_dev_1'));
-      expect(map['estado'], equals('En Desarrollo'));
+      final map1 = tareaUnAsignado.toMap();
+      expect(map1['asignadosA'], equals(['user_dev_1']));
+      expect(map1['asignadoA'], equals('user_dev_1'));
 
-      final tareaFromMap = Tarea.fromMap('t1', map);
-      expect(tareaFromMap.asignadoA, equals('user_dev_1'));
-      expect(tareaFromMap.estadoNombre, equals('En Desarrollo'));
+      final tareaFromMap1 = Tarea.fromMap('t1', map1);
+      expect(tareaFromMap1.asignadosA, equals(['user_dev_1']));
+      expect(tareaFromMap1.asignadoA, equals('user_dev_1'));
+
+      // 3c. Tarea con múltiples integrantes asignados (equipo)
+      final tareaMultiples = Tarea(
+        id: 't_multi',
+        titulo: 'Módulo Colaborativo',
+        tableroId: 'b2',
+        asignadosA: ['user_dev_1', 'user_dev_2', 'user_qa_1'],
+        fechaCreacion: DateTime.now(),
+      );
+
+      expect(tareaMultiples.asignadosA.length, equals(3));
+      expect(tareaMultiples.asignadosA, containsAll(['user_dev_1', 'user_dev_2', 'user_qa_1']));
+      expect(tareaMultiples.asignadoA, equals('user_dev_1'));
+
+      final mapMulti = tareaMultiples.toMap();
+      expect(mapMulti['asignadosA'], equals(['user_dev_1', 'user_dev_2', 'user_qa_1']));
+
+      final tareaFromMapMulti = Tarea.fromMap('t_multi', mapMulti);
+      expect(tareaFromMapMulti.asignadosA.length, equals(3));
     });
 
-    test('4. Copia de tarea con copyWith actualiza asignación y columna', () {
+    test('4. Copia de tarea con copyWith actualiza asignaciones múltiples y columna', () {
       final tareaOriginal = Tarea(
         id: 't2',
         titulo: 'Revisión de Código',
@@ -86,11 +117,12 @@ void main() {
       );
 
       final tareaActualizada = tareaOriginal.copyWith(
-        asignadoA: 'user_qa_1',
+        asignadosA: ['user_qa_1', 'user_lead_1'],
         estadoNombre: 'En Pruebas / QA',
         prioridad: 2,
       );
 
+      expect(tareaActualizada.asignadosA, equals(['user_qa_1', 'user_lead_1']));
       expect(tareaActualizada.asignadoA, equals('user_qa_1'));
       expect(tareaActualizada.estadoNombre, equals('En Pruebas / QA'));
       expect(tareaActualizada.prioridad, equals(2));
@@ -182,6 +214,154 @@ void main() {
       );
 
       expect(adjuntoDocx.nombre.endsWith('.docx'), isTrue);
+    });
+
+    test('8. Personalización de roles según metodología en el modelo Tablero', () {
+      final tableroDefault = Tablero(
+        id: 'b_rol_1',
+        nombre: 'Tablero Estándar',
+        esGrupal: true,
+        creadorId: 'u1',
+        fechaCreacion: DateTime.now(),
+      );
+
+      // Roles predeterminados por defecto
+      expect(tableroDefault.roles, contains('Líder de Proyecto'));
+      expect(tableroDefault.roles, contains('Programador / Desarrollador'));
+
+      // Tablero con roles de metodología Ágil / Scrum
+      final tableroScrum = Tablero(
+        id: 'b_scrum',
+        nombre: 'Proyecto Scrum Agil',
+        esGrupal: true,
+        creadorId: 'u1',
+        roles: ['Product Owner', 'Scrum Master', 'Desarrollador', 'QA / Tester'],
+        fechaCreacion: DateTime.now(),
+      );
+
+      expect(tableroScrum.roles.length, equals(4));
+      expect(tableroScrum.roles, contains('Product Owner'));
+      expect(tableroScrum.roles, contains('Scrum Master'));
+
+      // Serialización y deserialización de roles en Firestore map
+      final mapScrum = tableroScrum.toMap();
+      expect(mapScrum['roles'], equals(['Product Owner', 'Scrum Master', 'Desarrollador', 'QA / Tester']));
+
+      final tableroRecuperado = Tablero.fromMap('b_scrum', mapScrum);
+      expect(tableroRecuperado.roles, equals(['Product Owner', 'Scrum Master', 'Desarrollador', 'QA / Tester']));
+    });
+
+    test('9. Sección de comentarios y retroalimentación en tareas', () {
+      final comentario1 = ComentarioTarea(
+        id: 'c1',
+        autorId: 'u_dev1',
+        autorNombre: 'Carlos Desarrollador',
+        contenido: 'Se ha completado la revisión del módulo de autenticación.',
+        fechaCreacion: DateTime.now(),
+      );
+
+      final comentario2 = ComentarioTarea(
+        id: 'c2',
+        autorId: 'u_qa1',
+        autorNombre: 'Ana QA',
+        contenido: 'Favor de verificar las pruebas de borde en contraseñas.',
+        fechaCreacion: DateTime.now(),
+      );
+
+      final tareaConComentarios = Tarea(
+        id: 't_comentarios',
+        titulo: 'Módulo de Registro de Usuarios',
+        tableroId: 'b_com',
+        fechaCreacion: DateTime.now(),
+        comentarios: [comentario1, comentario2],
+      );
+
+      expect(tareaConComentarios.comentarios.length, equals(2));
+      expect(tareaConComentarios.comentarios.first.autorNombre, equals('Carlos Desarrollador'));
+      expect(tareaConComentarios.comentarios.last.contenido, contains('pruebas de borde'));
+
+      // Serialización toMap y deserialización fromMap
+      final map = tareaConComentarios.toMap();
+      expect(map['comentarios'], isA<List>());
+      expect((map['comentarios'] as List).length, equals(2));
+
+      final tareaRecuperada = Tarea.fromMap('t_comentarios', map);
+      expect(tareaRecuperada.comentarios.length, equals(2));
+      expect(tareaRecuperada.comentarios.first.autorId, equals('u_dev1'));
+      expect(tareaRecuperada.comentarios.last.autorNombre, equals('Ana QA'));
+
+      // Prueba con copyWith para añadir un nuevo comentario
+      final comentario3 = ComentarioTarea(
+        id: 'c3',
+        autorId: 'u_po',
+        autorNombre: 'Pedro Product Owner',
+        contenido: 'Aprobado para el sprint actual.',
+        fechaCreacion: DateTime.now(),
+      );
+
+      final tareaActualizada = tareaConComentarios.copyWith(
+        comentarios: [...tareaConComentarios.comentarios, comentario3],
+      );
+
+      expect(tareaActualizada.comentarios.length, equals(3));
+      expect(tareaActualizada.comentarios.last.autorNombre, equals('Pedro Product Owner'));
+    });
+
+    test('10. Modelo BorradorNota para espacio personal de borradores y notas privadas', () {
+      final borrador = BorradorNota(
+        id: 'draft_1',
+        usuarioId: 'user_dev_1',
+        tableroId: 'b_kanban_1',
+        titulo: 'Idea de refactorización de base de datos',
+        contenido: 'Puntos a considerar:\n- Crear colecciones secundarias.\n- Optimizar índices.',
+        fechaCreacion: DateTime.now(),
+        colorHex: '0xFF63D0A1',
+      );
+
+      expect(borrador.titulo, contains('refactorización'));
+      expect(borrador.colorHex, equals('0xFF63D0A1'));
+
+      final map = borrador.toMap();
+      expect(map['usuarioId'], equals('user_dev_1'));
+      expect(map['tableroId'], equals('b_kanban_1'));
+      expect(map['colorHex'], equals('0xFF63D0A1'));
+
+      final borradorRecuperado = BorradorNota.fromMap('draft_1', map);
+      expect(borradorRecuperado.titulo, equals(borrador.titulo));
+      expect(borradorRecuperado.contenido, equals(borrador.contenido));
+      expect(borradorRecuperado.colorHex, equals('0xFF63D0A1'));
+    });
+
+    test('11. Soporte de archivos adjuntos en BorradorNota y migración al publicar como tarea', () {
+      final adjunto = AdjuntoTarea(
+        id: 'adj_d1',
+        nombre: 'diagrama_esquema.png',
+        url: 'https://storage.firebase.com/diagrama.png',
+        tipo: 'imagen',
+        tamanoBytes: 500000,
+        fechaAdjunto: DateTime.now(),
+      );
+
+      final borradorConAdjunto = BorradorNota(
+        id: 'draft_2',
+        usuarioId: 'user_dev_1',
+        tableroId: 'b_kanban_1',
+        titulo: 'Borrador con Mockups',
+        contenido: '### Requerimientos\n- [ ] Pantalla Login\n- [x] Base de datos',
+        fechaCreacion: DateTime.now(),
+        adjuntos: [adjunto],
+      );
+
+      expect(borradorConAdjunto.adjuntos.length, equals(1));
+      expect(borradorConAdjunto.adjuntos.first.nombre, equals('diagrama_esquema.png'));
+
+      // Verificar toMap y desde Map
+      final map = borradorConAdjunto.toMap();
+      expect(map['adjuntos'], isA<List>());
+
+      final recuperado = BorradorNota.fromMap('draft_2', map);
+      expect(recuperado.adjuntos.length, equals(1));
+      expect(recuperado.adjuntos.first.tipo, equals('imagen'));
     });
   });
 }

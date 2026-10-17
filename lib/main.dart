@@ -1,20 +1,19 @@
 import 'package:firebase_core/firebase_core.dart';
-//import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'controlador/auth_controller.dart';
+import 'controlador/theme_controller.dart';
 import 'Vistas/login_view.dart';
 import 'firebase_options.dart';
-import 'servicios/firestore_service.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'servicios/notificacion_vencimiento_service.dart';
 
-
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-// Inicializar idioma español para fechas y calendario
-   await initializeDateFormatting('es_ES');
+  // Inicializar formateo de fechas local
+  await initializeDateFormatting();
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
@@ -23,40 +22,58 @@ Future<void> main() async {
     if (e.code != 'duplicate-app') {
       rethrow;
     }
-    // Si es duplicate-app, Firebase ya estaba inicializado nativamente, lo ignoramos
   }
-
-  // Activar App Check
-  //await FirebaseAppCheck.instance.activate(
-    //androidProvider: AndroidProvider.debug,
-    //appleProvider: AppleProvider.debug,
-  //);
-
-  final firestoreService = FirestoreService();
-  // await firestoreService.crearColeccionUsuarios();
 
   await NotificacionVencimientoService.inicializar();
 
-  runApp(const MyApp());
+  // Cargar preferencia de tema guardada antes de iniciar la app
+  String? temaInicial;
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    temaInicial = prefs.getString('theme_preference');
+  } catch (_) {}
+
+  runApp(MyApp(temaInicial: temaInicial));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final String? temaInicial;
+
+  const MyApp({super.key, this.temaInicial});
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (context) => AuthController()..checkAuthStatus(),
-      child: MaterialApp(
-        title: 'Kanbly',
-        theme: ThemeData(
-          primarySwatch: Colors.blue,
-          scaffoldBackgroundColor: const Color(0xFFFCFDFD),
-          fontFamily: 'Roboto',
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+          create: (context) => AuthController()..checkAuthStatus(),
         ),
-
-        home: const LoginView(),
-        debugShowCheckedModeBanner: false,
+        ChangeNotifierProvider(
+          create: (context) => ThemeProvider(initialTheme: temaInicial),
+        ),
+      ],
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, child) {
+          return MaterialApp(
+            title: 'Kanbly',
+            theme: themeProvider.lightTheme,
+            darkTheme: themeProvider.darkTheme,
+            themeMode: themeProvider.themeMode,
+            localizationsDelegates: const [
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            supportedLocales: const [
+              Locale('es', 'ES'),
+              Locale('es'),
+              Locale('en', 'US'),
+              Locale('en'),
+            ],
+            home: const LoginView(),
+            debugShowCheckedModeBanner: false,
+          );
+        },
       ),
     );
   }

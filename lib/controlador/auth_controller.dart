@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../modelo/usuario.dart';
 import '../servicios/auth_service.dart';
 import '../servicios/firestore_service.dart';
-import '../servicios/encryption_service.dart';
 
 enum AuthStatus {
   initial,
@@ -115,9 +114,6 @@ class AuthController extends ChangeNotifier {
         throw Exception('Solo se permiten correos institucionales @e.uttecamac.edu.mx');
       }
 
-      // Encriptar contraseña para verificación
-      final encryptedPassword = EncryptionService.encryptPassword(password);
-
       // Iniciar sesión en Firebase Auth
       final userCredential = await _authService.loginConEmailYPassword(email, password);
 
@@ -203,6 +199,50 @@ class AuthController extends ChangeNotifier {
     }
   }
 
+
+  // Actualiza el nombre completo del usuario (único dato "editable" del perfil,
+  // junto con la foto si la agregas después). El email no se edita aquí porque
+  // está ligado a la cuenta de Firebase Auth y a la validación de dominio
+  // institucional del registro; cambiarlo requeriría reverificar el correo.
+  Future<bool> actualizarNombre(String nuevoNombre) async {
+    if (_usuarioActual == null) return false;
+    try {
+      _clearError();
+      final actualizado = _usuarioActual!.copyWith(
+        nombreCompleto: nuevoNombre.trim(),
+      );
+      await _firestoreService.actualizarUsuario(actualizado);
+      _usuarioActual = actualizado;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _setError(e.toString().replaceFirst('Exception: ', ''));
+      return false;
+    }
+  }
+
+  // Elimina la cuenta por completo: primero valida la contraseña, luego borra
+  // los datos de Firestore (mientras la sesión sigue siendo válida) y al final
+  // borra la cuenta de Firebase Auth.
+  Future<bool> eliminarCuenta(String password) async {
+    if (_usuarioActual == null) return false;
+    try {
+      _clearError();
+      final uid = _usuarioActual!.id;
+
+      await _authService.reautenticar(password);   // 1. Confirma identidad
+      await _firestoreService.eliminarUsuario(uid); // 2. Borra datos en Firestore
+      await _authService.eliminarCuentaAuth();       // 3. Borra la cuenta de Auth
+
+      _usuarioActual = null;
+      _setStatus(AuthStatus.unauthenticated);
+      return true;
+    } catch (e) {
+      _setError(e.toString().replaceFirst('Exception: ', ''));
+      return false;
+    }
+  }
+
   // Guardar contraseña encriptada
   Future<void> _saveEncryptedPassword(String encryptedPassword) async {
     // Implementar si se quiere guardar en SharedPreferences
@@ -214,7 +254,7 @@ class AuthController extends ChangeNotifier {
   }
 
   void _setError(String message) {
-    _errorMessage = message;
+    _errorMessage = message.replaceFirst('Exception: ', '');
     notifyListeners();
   }
 
@@ -236,4 +276,53 @@ class AuthController extends ChangeNotifier {
 
   // Obtener rol del usuario
   String get userRole => _usuarioActual?.rol ?? 'estudiante';
+
+  // Actualizar perfil de usuario
+  Future<bool> actualizarPerfil({
+    String? nombreCompleto,
+    String? fotoPerfil,
+  }) async {
+    try {
+      _clearError();
+
+      if (_usuarioActual == null) {
+        throw Exception('No hay sesión de usuario activa');
+      }
+
+      final nuevoNombre = (nombreCompleto != null && nombreCompleto.trim().isNotEmpty)
+          ? nombreCompleto.trim()
+          : _usuarioActual!.nombreCompleto;
+
+      final nuevaFoto = fotoPerfil ?? _usuarioActual!.fotoPerfil;
+
+      final usuarioActualizado = _usuarioActual!.copyWith(
+        nombreCompleto: nuevoNombre,
+        fotoPerfil: nuevaFoto,
+      );
+
+      await _firestoreService.actualizarUsuario(usuarioActualizado);
+      _usuarioActual = usuarioActualizado;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _setError(e.toString().replaceFirst('Exception: ', ''));
+      return false;
+    }
+  }
+
+  // Recargar datos del usuario desde Firestore
+  Future<void> recargarUsuario() async {
+    try {
+      final user = _authService.getCurrentUser();
+      if (user != null) {
+        final usuario = await _firestoreService.obtenerUsuario(user.uid);
+        if (usuario != null) {
+          _usuarioActual = usuario;
+          notifyListeners();
+        }
+      }
+    } catch (e) {
+      print('Error al recargar usuario: $e');
+    }
+  }
 }

@@ -4,6 +4,7 @@ import '../modelo/usuario.dart';
 import '../modelo/tablero.dart';
 import '../modelo/tarea.dart';
 import '../modelo/invitacion.dart';
+import '../modelo/borrador_nota.dart';
 import 'notificacion_vencimiento_service.dart';
 
 class FirestoreService {
@@ -50,6 +51,14 @@ class FirestoreService {
       await _firestore.collection('usuarios').doc(usuario.id).update(usuario.toMap());
     } catch (e) {
       throw Exception('Error al actualizar usuario: $e');
+    }
+  }
+
+  Future<void> eliminarUsuario(String userId) async {
+    try {
+      await _firestore.collection('usuarios').doc(userId).delete();
+    } catch (e) {
+      throw Exception('Error al eliminar usuario: $e');
     }
   }
 
@@ -284,6 +293,22 @@ class FirestoreService {
     }
   }
 
+  Future<List<Tarea>> obtenerTareasCreadasPorUsuario(String userId) async {
+    try {
+      final snapshot = await _firestore
+          .collection('tareas')
+          .where('creadaPor', isEqualTo: userId)
+          .get();
+
+      return snapshot.docs
+          .map((doc) => Tarea.fromMap(doc.id, doc.data()))
+          .where((tarea) => !tarea.archivada) // filtramos en Dart, no en la query
+          .toList();
+    } catch (e) {
+      throw Exception('Error al obtener tareas del usuario: $e');
+    }
+  }
+
   Future<Tarea?> obtenerTarea(String tareaId) async {
     try {
       final doc = await _firestore.collection('tareas').doc(tareaId).get();
@@ -364,6 +389,36 @@ class FirestoreService {
       await NotificacionVencimientoService.cancelar(tareaId);
     } catch (e) {
       throw Exception('Error al eliminar tarea: $e');
+    }
+  }
+
+  /// Agrega un comentario a una tarea en Firestore
+  Future<void> agregarComentarioTarea({
+    required String tareaId,
+    required ComentarioTarea comentario,
+  }) async {
+    try {
+      await _firestore.collection('tareas').doc(tareaId).update({
+        'comentarios': FieldValue.arrayUnion([comentario.toMap()]),
+        'fechaActualizacion': Timestamp.now(),
+      });
+    } catch (e) {
+      throw Exception('Error al agregar comentario: $e');
+    }
+  }
+
+  /// Elimina un comentario de una tarea en Firestore
+  Future<void> eliminarComentarioTarea({
+    required String tareaId,
+    required ComentarioTarea comentario,
+  }) async {
+    try {
+      await _firestore.collection('tareas').doc(tareaId).update({
+        'comentarios': FieldValue.arrayRemove([comentario.toMap()]),
+        'fechaActualizacion': Timestamp.now(),
+      });
+    } catch (e) {
+      throw Exception('Error al eliminar comentario: $e');
     }
   }
 
@@ -575,5 +630,136 @@ class FirestoreService {
       'estado': 'rechazada',
       'fechaRespuesta': FieldValue.serverTimestamp(),
     });
+  }
+
+  // ========== MÉTODOS PARA BORRADORES Y NOTAS PERSONALES ==========
+
+  /// Escucha en tiempo real los borradores del usuario actual para un tablero específico
+  Stream<List<BorradorNota>> escucharBorradoresNota(String usuarioId, String tableroId) {
+    return _firestore
+        .collection('borradores_notas')
+        .where('usuarioId', isEqualTo: usuarioId)
+        .where('tableroId', isEqualTo: tableroId)
+        .snapshots()
+        .map((snapshot) {
+      final lista = snapshot.docs.map((doc) {
+        return BorradorNota.fromMap(doc.id, doc.data());
+      }).toList();
+      lista.sort((a, b) => b.fechaCreacion.compareTo(a.fechaCreacion));
+      return lista;
+    });
+  }
+
+  /// Escucha en tiempo real las notas personales vinculadas a una tarea específica
+  Stream<List<BorradorNota>> escucharNotasDeTarea(String tareaId) {
+    return _firestore
+        .collection('borradores_notas')
+        .where('tareaId', isEqualTo: tareaId)
+        .snapshots()
+        .map((snapshot) {
+      final lista = snapshot.docs.map((doc) {
+        return BorradorNota.fromMap(doc.id, doc.data());
+      }).toList();
+      lista.sort((a, b) => b.fechaCreacion.compareTo(a.fechaCreacion));
+      return lista;
+    });
+  }
+
+  /// Vincula una nota personal a una tarea del tablero
+  Future<void> vincularNotaATarea({
+    required String borradorId,
+    required String tareaId,
+    required String tareaTitulo,
+  }) async {
+    try {
+      await _firestore.collection('borradores_notas').doc(borradorId).update({
+        'tareaId': tareaId,
+        'tareaTitulo': tareaTitulo,
+        'fechaActualizacion': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      throw Exception('Error al vincular nota a la tarea: $e');
+    }
+  }
+
+  /// Desvincula una nota personal de su tarea asignada
+  Future<void> desvincularNotaDeTarea(String borradorId) async {
+    try {
+      await _firestore.collection('borradores_notas').doc(borradorId).update({
+        'tareaId': FieldValue.delete(),
+        'tareaTitulo': FieldValue.delete(),
+        'fechaActualizacion': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      throw Exception('Error al desvincular nota de la tarea: $e');
+    }
+  }
+
+  /// Crea un nuevo borrador o nota personal
+  Future<String> crearBorradorNota(BorradorNota borrador) async {
+    try {
+      final docRef = await _firestore.collection('borradores_notas').add(borrador.toMap());
+      return docRef.id;
+    } catch (e) {
+      throw Exception('Error al crear borrador: $e');
+    }
+  }
+
+  /// Actualiza un borrador o nota personal existente
+  Future<void> actualizarBorradorNota(BorradorNota borrador) async {
+    try {
+      final data = borrador.toMap();
+      data['fechaActualizacion'] = FieldValue.serverTimestamp();
+      await _firestore.collection('borradores_notas').doc(borrador.id).update(data);
+    } catch (e) {
+      throw Exception('Error al actualizar borrador: $e');
+    }
+  }
+
+  /// Elimina un borrador o nota personal
+  Future<void> eliminarBorradorNota(String borradorId) async {
+    try {
+      await _firestore.collection('borradores_notas').doc(borradorId).delete();
+    } catch (e) {
+      throw Exception('Error al eliminar borrador: $e');
+    }
+  }
+
+  /// Convierte un borrador personal en una tarea oficial publicada en el tablero
+  Future<Tarea> convertirBorradorATarea({
+    required BorradorNota borrador,
+    required String columnaDestino,
+    int? prioridad,
+  }) async {
+    try {
+      final tareaId = _firestore.collection('tareas').doc().id;
+      final enumEstado = EstadoTareaExtension.fromString(columnaDestino);
+      final prioridadFinal = prioridad ?? borrador.prioridad;
+
+      final nuevaTarea = Tarea(
+        id: tareaId,
+        titulo: borrador.titulo,
+        descripcion: borrador.contenido.isNotEmpty ? borrador.contenido : null,
+        estado: enumEstado,
+        estadoNombre: columnaDestino,
+        orden: 0,
+        tableroId: borrador.tableroId,
+        asignadosA: borrador.asignadosA,
+        fechaCreacion: DateTime.now(),
+        prioridad: prioridadFinal,
+        adjuntos: borrador.adjuntos,
+        archivada: false,
+        creadaPor: borrador.usuarioId,
+      );
+
+      await crearTareaConId(nuevaTarea);
+
+      // Eliminar el borrador después de convertirlo con éxito
+      await eliminarBorradorNota(borrador.id);
+
+      return nuevaTarea;
+    } catch (e) {
+      throw Exception('Error al convertir borrador a tarea: $e');
+    }
   }
 }

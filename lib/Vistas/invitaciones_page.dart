@@ -20,8 +20,12 @@ class InvitacionesPage extends StatelessWidget {
 
     final firestoreService = FirestoreService();
 
+    final theme = Theme.of(context);
+
     return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
+        backgroundColor: theme.appBarTheme.backgroundColor ?? theme.scaffoldBackgroundColor,
         title: const Text('Invitaciones'),
       ),
       body: StreamBuilder<List<Invitacion>>(

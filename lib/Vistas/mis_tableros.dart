@@ -62,12 +62,11 @@ class _MisTablerosState extends State<MisTableros> {
   }
   @override
   Widget build(BuildContext context) {
-    // Colores oficiales basados estrictamente en tu paleta
-    const Color blanco = Color(0xFFFCFDFD);
+    final theme = Theme.of(context);
 
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: blanco,
+      backgroundColor: theme.scaffoldBackgroundColor,
 
       // 3. BARRA SUPERIOR (APPBAR):
       appBar: Encabezado(
@@ -120,12 +119,12 @@ class _MisTablerosState extends State<MisTableros> {
           const SizedBox(height: 20),
 
           // --- TÍTULO DE LA SECCIÓN ---
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16.0),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Text(
               'Mis Tableros',
               style: TextStyle(
-                color: Color(0xFF1E293B),
+                color: theme.colorScheme.onSurface,
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
               ),
@@ -159,6 +158,7 @@ class _MisTablerosState extends State<MisTableros> {
     required Color colorActivo,
   }) {
     final bool activa = _tabActiva == index;
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
     return GestureDetector(
       onTap: () {
@@ -169,10 +169,10 @@ class _MisTablerosState extends State<MisTableros> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         decoration: BoxDecoration(
-          color: activa ? colorActivo.withOpacity(0.08) : Colors.white,
+          color: activa ? colorActivo.withOpacity(0.08) : Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: activa ? colorActivo : Colors.grey.shade300,
+            color: activa ? colorActivo : (isDark ? const Color(0xFF2D3748) : Colors.grey.shade300),
             width: activa ? 1.8 : 1.0,
           ),
         ),
@@ -181,14 +181,14 @@ class _MisTablerosState extends State<MisTableros> {
           children: [
             Icon(
               icono,
-              color: activa ? colorActivo : Colors.grey.shade600,
+              color: activa ? colorActivo : (isDark ? Colors.grey.shade400 : Colors.grey.shade600),
               size: 18,
             ),
             const SizedBox(width: 6),
             Text(
               titulo,
               style: TextStyle(
-                color: activa ? colorActivo : Colors.grey.shade700,
+                color: activa ? colorActivo : (isDark ? Colors.grey.shade300 : Colors.grey.shade700),
                 fontSize: 11,
                 fontWeight: activa ? FontWeight.bold : FontWeight.w500,
                 height: 1.1,
@@ -286,13 +286,15 @@ class _MisTablerosState extends State<MisTableros> {
     tablero.esGrupal
         ? const Color(0xFF52ABEB)
         : const Color(0xFF63D0A1);
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
     return GestureDetector(
       onTap: () {
         _abrirTableroCompleto(tablero);
       },
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: colorTipo.withOpacity(0.4), width: 1.5),
           boxShadow: [
@@ -320,8 +322,8 @@ class _MisTablerosState extends State<MisTableros> {
                             tablero.nombre,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Color(0xFF1E293B),
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onSurface,
                               fontWeight: FontWeight.bold,
                               fontSize: 14,
                             ),
@@ -379,12 +381,12 @@ class _MisTablerosState extends State<MisTableros> {
             Container(
               height: 36,
               decoration: BoxDecoration(
-                color: Colors.grey.shade50,
+                color: isDark ? const Color(0xFF182030) : Colors.grey.shade50,
                 borderRadius: const BorderRadius.only(
                   bottomLeft: Radius.circular(14),
                   bottomRight: Radius.circular(14),
                 ),
-                border: Border(top: BorderSide(color: Colors.grey.shade200)),
+                border: Border(top: BorderSide(color: isDark ? const Color(0xFF2D3748) : Colors.grey.shade200)),
               ),
               // Conectamos al stream de tareas de este tablero específico
               child: StreamBuilder<List<Tarea>>(
@@ -452,7 +454,7 @@ class _MisTablerosState extends State<MisTableros> {
   void _mostrarOpcionesCreacion(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -463,10 +465,10 @@ class _MisTablerosState extends State<MisTableros> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Crear Nuevo Tablero',
                 style: TextStyle(
-                  color: Color(0xFF1E293B),
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
