@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:kanbly/Vistas/recordatorios.dart';
 
 // --- IMPORTS DE LA ARQUITECTURA DEL EQUIPO ---
 import 'encabezado.dart';
@@ -12,7 +13,7 @@ import '../modelo/tarea.dart';
 import '../servicios/firestore_service.dart';
 import '../utilerias/formato_util.dart';
 import 'calendario_tablero.dart';
-
+import 'recordatorios.dart';
 // ==========================================
 // 1. PANTALLA PRINCIPAL: TABLERO KANBAN
 // ==========================================
@@ -610,6 +611,16 @@ class _KanbanBoardWidgetState extends State<KanbanBoardWidget> {
           builder: (context) => CalendarioTablero(
             tableroId: tableroActivo.id,
           ),
+        ),
+      );
+      return;
+    }
+
+    if (tipoModulo == 'recordatorios') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const Recordatorios(),
         ),
       );
       return;
