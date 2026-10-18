@@ -57,9 +57,12 @@ class _CapturaVozViewState extends State<CapturaVozView> {
     if (ok && mounted) {
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (context) => VistaPreviaBorradoresView(
-            tablero: widget.tablero,
-            miembrosEquipo: widget.miembrosEquipo,
+          builder: (_) => ChangeNotifierProvider.value(
+            value: controller,
+            child: VistaPreviaBorradoresView(
+              tablero: widget.tablero,
+              miembrosEquipo: widget.miembrosEquipo,
+            ),
           ),
         ),
       );

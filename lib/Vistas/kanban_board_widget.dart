@@ -559,6 +559,17 @@ class _KanbanBoardWidgetState extends State<KanbanBoardWidget> {
   Future<void> _abrirAsistenteIa(BuildContext context, Tablero? tableroActivo) async {
     if (tableroActivo == null) return;
 
+    final currentUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final permisos = tableroActivo.obtenerPermisosDeUsuario(currentUid);
+    if (!permisos.crearTareas) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No tienes permiso para crear tareas en este tablero')),
+        );
+      }
+      return;
+    }
+
     // Cargar información de integrantes del tablero (creador + miembros)
     final List<Usuario> miembros = [];
     final Set<String> uidsProcesados = {};

@@ -22,8 +22,7 @@ abstract class IAsistenteIaService {
 /// 3. Habilita la integración de Gemini Developer API.
 class AsistenteIaService implements IAsistenteIaService {
   /// Constante de modelo Flash vigente según la documentación de Firebase AI Logic.
-  static const String modeloIaPredeterminado = 'gemini-2.0-flash';
-
+  static const String modeloIaPredeterminado = 'gemini-3.8-flash';
   final String nombreModelo;
 
   AsistenteIaService({this.nombreModelo = modeloIaPredeterminado});

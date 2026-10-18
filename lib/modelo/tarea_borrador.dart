@@ -72,7 +72,10 @@ class TareaBorrador {
     DateTime? fechaLimite;
     final rawFecha = map['fechaLimite']?.toString().trim();
     if (rawFecha != null && rawFecha.isNotEmpty) {
-      fechaLimite = DateTime.tryParse(rawFecha);
+      final parsed = DateTime.tryParse(rawFecha);
+      if (parsed != null) {
+        fechaLimite = parsed.toLocal();
+      }
     }
 
     // Validar columna (Ajuste 5: columna inválida -> primera columna disponible)
@@ -125,22 +128,54 @@ class TareaBorrador {
     };
   }
 
+  static const Object _sentinel = Object();
+
   TareaBorrador copyWith({
     String? id,
     String? titulo,
-    String? descripcion,
+    Object? descripcion = _sentinel,
+    bool limpiarDescripcion = false,
     int? prioridad,
-    DateTime? fechaLimite,
-    String? asignadoUid,
+    Object? fechaLimite = _sentinel,
+    bool limpiarFecha = false,
+    Object? asignadoUid = _sentinel,
+    bool limpiarAsignado = false,
     String? columna,
   }) {
+    final String? nuevaDescripcion;
+    if (limpiarDescripcion) {
+      nuevaDescripcion = null;
+    } else if (descripcion != _sentinel) {
+      nuevaDescripcion = descripcion as String?;
+    } else {
+      nuevaDescripcion = this.descripcion;
+    }
+
+    final DateTime? nuevaFechaLimite;
+    if (limpiarFecha) {
+      nuevaFechaLimite = null;
+    } else if (fechaLimite != _sentinel) {
+      nuevaFechaLimite = fechaLimite as DateTime?;
+    } else {
+      nuevaFechaLimite = this.fechaLimite;
+    }
+
+    final String? nuevoAsignadoUid;
+    if (limpiarAsignado) {
+      nuevoAsignadoUid = null;
+    } else if (asignadoUid != _sentinel) {
+      nuevoAsignadoUid = asignadoUid as String?;
+    } else {
+      nuevoAsignadoUid = this.asignadoUid;
+    }
+
     return TareaBorrador(
       id: id ?? this.id,
       titulo: titulo ?? this.titulo,
-      descripcion: descripcion ?? this.descripcion,
+      descripcion: nuevaDescripcion,
       prioridad: prioridad ?? this.prioridad,
-      fechaLimite: fechaLimite ?? this.fechaLimite,
-      asignadoUid: asignadoUid ?? this.asignadoUid,
+      fechaLimite: nuevaFechaLimite,
+      asignadoUid: nuevoAsignadoUid,
       columna: columna ?? this.columna,
     );
   }

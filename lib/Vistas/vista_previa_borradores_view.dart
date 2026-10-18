@@ -245,10 +245,12 @@ class VistaPreviaBorradoresView extends StatelessWidget {
                         ),
                         maxLines: 2,
                         onChanged: (val) {
+                          final textoLimpio = val.trim();
                           controller.actualizarBorrador(
                             index,
                             borrador.copyWith(
-                              descripcion: val.trim().isNotEmpty ? val : null,
+                              descripcion: textoLimpio.isNotEmpty ? textoLimpio : null,
+                              limpiarDescripcion: textoLimpio.isEmpty,
                             ),
                           );
                         },
@@ -366,7 +368,10 @@ class VistaPreviaBorradoresView extends StatelessWidget {
                               onChanged: (val) {
                                 controller.actualizarBorrador(
                                   index,
-                                  borrador.copyWith(asignadoUid: val),
+                                  borrador.copyWith(
+                                    asignadoUid: val,
+                                    limpiarAsignado: val == null,
+                                  ),
                                 );
                               },
                             ),
@@ -428,7 +433,10 @@ class VistaPreviaBorradoresView extends StatelessWidget {
                                   onPressed: () {
                                     controller.actualizarBorrador(
                                       index,
-                                      borrador.copyWith(fechaLimite: null),
+                                      borrador.copyWith(
+                                        fechaLimite: null,
+                                        limpiarFecha: true,
+                                      ),
                                     );
                                   },
                                 ),

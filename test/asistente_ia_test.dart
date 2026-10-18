@@ -90,6 +90,54 @@ void main() {
       expect(borrador.asignadoUid, isNull);
     });
 
+    test('copyWith permite establecer en null fechaLimite, asignadoUid y descripcion', () {
+      final borradorOriginal = TareaBorrador(
+        id: 'id_1',
+        titulo: 'Título original',
+        descripcion: 'Descripción existente',
+        prioridad: 2,
+        fechaLimite: DateTime(2026, 10, 25, 15, 0),
+        asignadoUid: 'user_123',
+        columna: 'Pendiente',
+      );
+
+      final borradorLimpio = borradorOriginal.copyWith(
+        fechaLimite: null,
+        limpiarFecha: true,
+        asignadoUid: null,
+        limpiarAsignado: true,
+        descripcion: null,
+        limpiarDescripcion: true,
+      );
+
+      expect(borradorLimpio.id, equals('id_1'));
+      expect(borradorLimpio.titulo, equals('Título original'));
+      expect(borradorLimpio.fechaLimite, isNull);
+      expect(borradorLimpio.asignadoUid, isNull);
+      expect(borradorLimpio.descripcion, isNull);
+    });
+
+    test('fromMap convierte fechaLimite a hora local con toLocal() cuando incluye offset -06:00', () {
+      const dateStrWithOffset = '2026-10-18T15:00:00-06:00';
+      final expectedLocal = DateTime.parse(dateStrWithOffset).toLocal();
+
+      final map = {
+        'titulo': 'Tarea con offset de zona horaria',
+        'fechaLimite': dateStrWithOffset,
+        'columna': 'Pendiente',
+      };
+
+      final borrador = TareaBorrador.fromMap(
+        map,
+        columnasDisponibles: ['Pendiente'],
+        idLocal: 'id_offset_test',
+      );
+
+      expect(borrador.fechaLimite, isNotNull);
+      expect(borrador.fechaLimite!.isUtc, isFalse);
+      expect(borrador.fechaLimite, equals(expectedLocal));
+    });
+
     test('toTarea llena exhaustivamente todos los campos del modelo Tarea (Ajuste 10)', () {
       final borrador = TareaBorrador(
         id: 'borrador_1',

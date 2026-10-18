@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:speech_to_text/speech_to_text.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../modelo/tarea_borrador.dart';
 import '../modelo/tarea.dart';
 import '../servicios/asistente_ia_service.dart';
@@ -139,11 +141,23 @@ class AsistenteIaController extends ChangeNotifier {
     }
   }
 
-  /// Indica que el usuario puede abrir los ajustes del dispositivo si el permiso fue denegado (Ajuste 13)
+  /// Indica que el usuario puede abrir los ajustes del dispositivo si el permiso fue denegado
   Future<void> abrirAjustesDispositivo() async {
     try {
-      await inicializarVoz();
-    } catch (_) {}
+      final bool hasPermissionError = _permissionPermanentlyDenied ||
+          (_errorMessage != null &&
+              _errorMessage!.toLowerCase().contains('permiso'));
+
+      if (hasPermissionError || _permissionPermanentlyDenied) {
+        await openAppSettings();
+      } else {
+        await inicializarVoz();
+      }
+    } catch (_) {
+      try {
+        await openAppSettings();
+      } catch (_) {}
+    }
   }
 
   /// Procesa la transcripción con el servicio de IA y genera la lista de borradores en memoria
@@ -230,17 +244,15 @@ class AsistenteIaController extends ChangeNotifier {
 
     try {
       final List<Tarea> tareasOFiciales = [];
-      int contador = 1;
 
       for (final borrador in _borradores) {
-        final idDoc = 'tarea_ia_${DateTime.now().millisecondsSinceEpoch}_$contador';
-        contador++;
+        final idDoc = FirebaseFirestore.instance.collection('tareas').doc().id;
 
         final tarea = borrador.toTarea(
           idTareaDoc: idDoc,
           tableroId: tableroId,
           creadorId: creadorId,
-          orden: contador,
+          orden: 0,
         );
         tareasOFiciales.add(tarea);
       }
