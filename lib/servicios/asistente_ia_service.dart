@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:firebase_ai/firebase_ai.dart';
+import 'package:http/http.dart' show ClientException;
 import '../modelo/tarea_borrador.dart';
 
 /// Interfaz abstracta para el servicio de Asistente con IA.
@@ -13,7 +15,115 @@ abstract class IAsistenteIaService {
   });
 }
 
+/// Mensajes breves en español listos para mostrarse al usuario.
+///
+/// Nunca se expone al usuario JSON crudo, códigos HTTP ni nombres de excepciones.
+abstract final class MensajesAsistenteIa {
+  /// El servicio está ocupado (500/503, "high demand", "overloaded" o
+  /// "unavailable") y se agotaron los reintentos.
+  static const String servicioOcupado =
+      'El servicio de IA está ocupado. Intenta de nuevo en un momento.';
+
+  /// El modelo solicitado no existe o no está disponible (404 / NOT_FOUND).
+  static const String modeloNoDisponible =
+      'El modelo de IA no está disponible.';
+
+  /// La API de Firebase AI Logic no está habilitada en el proyecto (403 / PERMISSION_DENIED).
+  static const String apiNoHabilitada =
+      'La API de Firebase AI Logic no está habilitada en tu proyecto.';
+
+  /// Fallo de red o falta de conexión a Internet.
+  static const String sinConexion =
+      'Sin conexión a Internet. Revisa tu red e intenta de nuevo.';
+
+  /// La respuesta del modelo no se pudo interpretar (JSON inválido o vacío).
+  static const String respuestaInvalida =
+      'La IA devolvió una respuesta que no se pudo interpretar.';
+
+  /// Cualquier otro error no contemplado.
+  static const String errorInesperado =
+      'No se pudo procesar el dictado con IA. Intenta de nuevo.';
+}
+
+/// Excepción del asistente de IA con un [mensaje] breve en español para el usuario.
+///
+/// [toString] devuelve únicamente el [mensaje], de modo que al mostrarla en la UI
+/// nunca aparezcan códigos HTTP ni JSON crudo. La causa técnica original se
+/// conserva en [causa] para registros o depuración.
+class AsistenteIaException implements Exception {
+  AsistenteIaException(this.mensaje, {this.causa});
+
+  /// Texto en español que se puede mostrar directamente al usuario.
+  final String mensaje;
+
+  /// Error original de Firebase/Gemini que provocó la excepción (solo para diagnóstico).
+  final Object? causa;
+
+  @override
+  String toString() => mensaje;
+}
+
+/// Datos necesarios para pedirle una generación al modelo de IA.
+class SolicitudIa {
+  const SolicitudIa({
+    required this.nombreModelo,
+    required this.prompt,
+    required this.instruccionSistema,
+    required this.configuracionGeneracion,
+  });
+
+  /// Modelo de Gemini que atenderá la solicitud.
+  final String nombreModelo;
+
+  /// Texto del usuario enviado al modelo.
+  final String prompt;
+
+  /// Instrucción de sistema que define el rol y las reglas del modelo.
+  final String instruccionSistema;
+
+  /// Configuración de generación (JSON estructurado, `responseSchema`, etc.).
+  final GenerationConfig configuracionGeneracion;
+}
+
+/// Ejecuta una llamada a `generateContent` y devuelve el texto de la respuesta.
+///
+/// Por defecto usa `FirebaseAI.googleAI()`, pero puede sustituirse desde el
+/// constructor de [AsistenteIaService] para probar los reintentos sin Firebase.
+typedef GenerarContenidoIa = Future<String?> Function(SolicitudIa solicitud);
+
+/// Clasificación interna de los errores de IA para decidir si se reintenta
+/// y qué mensaje breve mostrar al usuario.
+enum _ClaseErrorIa {
+  /// Error temporal del servidor (500, 503, "high demand", "overloaded", "unavailable"): se reintenta.
+  temporal,
+
+  /// Cuota agotada (429 / RESOURCE_EXHAUSTED): no se reintenta con esperas cortas.
+  servicioSaturado,
+
+  /// Modelo inexistente o no soportado (404).
+  modeloNoDisponible,
+
+  /// API de Firebase AI Logic deshabilitada o sin permisos (403).
+  apiNoHabilitada,
+
+  /// Sin conexión o fallo de red.
+  sinConexion,
+
+  /// Respuesta del modelo imposible de interpretar.
+  respuestaInvalida,
+
+  /// Cualquier otro error.
+  desconocido,
+}
+
 /// Servicio que interactúa con Gemini a través de Firebase AI Logic (`FirebaseAI.googleAI()`).
+///
+/// REINTENTOS AUTOMÁTICOS:
+/// Solo los errores temporales del servidor (500, 503, "high demand",
+/// "overloaded" o "unavailable") se reintentan hasta 3 veces con esperas
+/// crecientes (2 s, 5 s y 10 s por defecto). Los demás errores (404 modelo no
+/// disponible, 403 API deshabilitada, JSON inválido, sin conexión, etc.) se
+/// informan de inmediato con un mensaje corto en español.
 ///
 /// NOTA DE CONFIGURACIÓN EN CONSOLA DE FIREBASE:
 /// Para que `FirebaseAI.googleAI()` funcione correctamente sin API keys expuestas en el código:
@@ -23,9 +133,34 @@ abstract class IAsistenteIaService {
 class AsistenteIaService implements IAsistenteIaService {
   /// Constante de modelo Flash vigente según la documentación de Firebase AI Logic.
   static const String modeloIaPredeterminado = 'gemini-3.8-flash';
+
+  /// Esperas por defecto antes de cada reintento: 3 reintentos (2 s, 5 s y 10 s).
+  static const List<Duration> esperasReintentoPredeterminadas = <Duration>[
+    Duration(seconds: 2),
+    Duration(seconds: 5),
+    Duration(seconds: 10),
+  ];
+
   final String nombreModelo;
 
-  AsistenteIaService({this.nombreModelo = modeloIaPredeterminado});
+  /// Esperas entre reintentos. Su longitud define cuántos reintentos se hacen
+  /// (el intento inicial + uno por cada espera). Inyectable en pruebas.
+  final List<Duration> esperasReintento;
+
+  final GenerarContenidoIa _generarContenido;
+  final Future<void> Function(Duration duracion) _esperar;
+
+  AsistenteIaService({
+    this.nombreModelo = modeloIaPredeterminado,
+    List<Duration> esperasReintento = esperasReintentoPredeterminadas,
+    GenerarContenidoIa? generarContenido,
+    Future<void> Function(Duration duracion)? esperar,
+  })  : esperasReintento = List<Duration>.unmodifiable(esperasReintento),
+        _generarContenido = generarContenido ?? _generarConFirebaseAi,
+        _esperar = esperar ?? Future<void>.delayed;
+
+  /// Número total de intentos permitidos: el inicial más los reintentos configurados.
+  int get intentosMaximos => esperasReintento.length + 1;
 
   @override
   Future<List<TareaBorrador>> procesarDictadoVoz({
@@ -132,28 +267,25 @@ Reglas de extracción estrictas:
 7. REGLA FUNDAMENTAL DE FIDELIDAD: NO dividas una sola tarea en múltiples tareas. Tampoco inventes tareas que no hayan sido mencionadas explícitamente en el dictado. Si algo no está claro, asigna null al campo correspondiente.
 ''';
 
+    // 4. Armar la solicitud y llamar a Gemini con reintentos automáticos
+    final solicitud = SolicitudIa(
+      nombreModelo: nombreModelo,
+      prompt: 'Texto dictado por el usuario: "$textoLimpio"',
+      instruccionSistema: promptSistema,
+      configuracionGeneracion: GenerationConfig(
+        responseMimeType: 'application/json',
+        responseSchema: schemaTareas,
+      ),
+    );
+
+    final String? responseText = await _generarContenidoConReintentos(solicitud);
+
+    if (responseText == null || responseText.trim().isEmpty) {
+      throw AsistenteIaException(MensajesAsistenteIa.respuestaInvalida);
+    }
+
+    // 5. Parsear respuesta JSON devuelta por Gemini
     try {
-      // 4. Instanciar el modelo con FirebaseAI.googleAI() (Ajuste 2)
-      final generativeModel = FirebaseAI.googleAI().generativeModel(
-        model: nombreModelo,
-        generationConfig: GenerationConfig(
-          responseMimeType: 'application/json',
-          responseSchema: schemaTareas,
-        ),
-        systemInstruction: Content.system(promptSistema),
-      );
-
-      final promptUsuario = 'Texto dictado por el usuario: "$textoLimpio"';
-      final response = await generativeModel.generateContent([
-        Content.text(promptUsuario),
-      ]);
-
-      final String? responseText = response.text;
-      if (responseText == null || responseText.trim().isEmpty) {
-        throw Exception('El modelo de IA devolvió una respuesta vacía.');
-      }
-
-      // 5. Parsear respuesta JSON devuelta por Gemini
       final dynamic parsedJson = jsonDecode(responseText);
       List<dynamic> listaTareasJson = [];
 
@@ -170,7 +302,8 @@ Reglas de extracción estrictas:
 
       for (final item in listaTareasJson) {
         if (item is Map<String, dynamic>) {
-          final idLocal = 'borrador_${DateTime.now().millisecondsSinceEpoch}_$contadorId';
+          final idLocal =
+              'borrador_${DateTime.now().millisecondsSinceEpoch}_$contadorId';
           contadorId++;
 
           final borrador = TareaBorrador.fromMap(
@@ -184,8 +317,197 @@ Reglas de extracción estrictas:
       }
 
       return borradores;
-    } catch (e) {
-      throw Exception('Error al procesar el dictado con IA: $e');
+    } on FormatException catch (error) {
+      // JSON inválido: no se reintenta, se informa de inmediato.
+      throw AsistenteIaException(MensajesAsistenteIa.respuestaInvalida,
+          causa: error);
+    } catch (error) {
+      throw AsistenteIaException(MensajesAsistenteIa.errorInesperado,
+          causa: error);
     }
   }
+
+  /// Llama a `generateContent` reintentando solo errores temporales.
+  ///
+  /// Se hace 1 intento inicial y hasta [esperasReintento].length reintentos,
+  /// esperando `esperasReintento[i]` antes del reintento `i + 1`.
+  /// Si se agotan los reintentos, lanza un mensaje genérico de servicio ocupado.
+  Future<String?> _generarContenidoConReintentos(SolicitudIa solicitud) async {
+    Object? ultimaCausa;
+
+    for (var intento = 1; intento <= intentosMaximos; intento++) {
+      try {
+        return await _generarContenido(solicitud);
+      } on AsistenteIaException {
+        // Errores ya traducidos por un generador inyectado: no se reenvuelven.
+        rethrow;
+      } catch (error) {
+        final clase = _clasificarError(error);
+        final esUltimoIntento = intento == intentosMaximos;
+
+        if (clase != _ClaseErrorIa.temporal || esUltimoIntento) {
+          throw AsistenteIaException(_mensajeParaClase(clase), causa: error);
+        }
+
+        ultimaCausa = error;
+        await _esperar(esperasReintento[intento - 1]);
+      }
+    }
+
+    throw AsistenteIaException(MensajesAsistenteIa.servicioOcupado,
+        causa: ultimaCausa);
+  }
+
+  /// Llamada real a Gemini mediante Firebase AI Logic.
+  static Future<String?> _generarConFirebaseAi(SolicitudIa solicitud) async {
+    final generativeModel = FirebaseAI.googleAI().generativeModel(
+      model: solicitud.nombreModelo,
+      generationConfig: solicitud.configuracionGeneracion,
+      systemInstruction: Content.system(solicitud.instruccionSistema),
+    );
+
+    final response = await generativeModel.generateContent([
+      Content.text(solicitud.prompt),
+    ]);
+
+    return response.text;
+  }
+
+  /// Traduce el error original a una clase interna para decidir reintentos y mensajes.
+  static _ClaseErrorIa _clasificarError(Object error) {
+    if (error is ServiceApiNotEnabled) return _ClaseErrorIa.apiNoHabilitada;
+    if (error is QuotaExceeded) return _ClaseErrorIa.servicioSaturado;
+    if (error is TimeoutException) return _ClaseErrorIa.temporal;
+    if (error is ClientException) return _ClaseErrorIa.sinConexion;
+    if (error is FormatException || error is FirebaseAISdkException) {
+      return _ClaseErrorIa.respuestaInvalida;
+    }
+    return _clasificarPorMensaje(_textoDeError(error));
+  }
+
+  /// Texto de diagnóstico del error (incluye el tipo concreto del SDK cuando aplica).
+  static String _textoDeError(Object error) => error is FirebaseAIException
+      ? '${error.runtimeType} ${error.message}'
+      : error.toString();
+
+  /// Clasifica un error a partir de su texto, sin exponerlo nunca al usuario.
+  static _ClaseErrorIa _clasificarPorMensaje(String textoOriginal) {
+    final texto = textoOriginal.toLowerCase();
+
+    if (_contieneAlguno(texto, _marcadoresSinConexion)) {
+      return _ClaseErrorIa.sinConexion;
+    }
+    if (_contieneAlguno(texto, _marcadoresApiNoHabilitada) ||
+        _codigo403.hasMatch(texto)) {
+      return _ClaseErrorIa.apiNoHabilitada;
+    }
+    if (_contieneAlguno(texto, _marcadoresModeloNoDisponible) ||
+        _codigo404.hasMatch(texto)) {
+      return _ClaseErrorIa.modeloNoDisponible;
+    }
+    if (_contieneAlguno(texto, _marcadoresTemporales) ||
+        _codigo5xx.hasMatch(texto)) {
+      return _ClaseErrorIa.temporal;
+    }
+    if (_contieneAlguno(texto, _marcadoresCuota) ||
+        _codigo429.hasMatch(texto)) {
+      return _ClaseErrorIa.servicioSaturado;
+    }
+    return _ClaseErrorIa.desconocido;
+  }
+
+  static bool _contieneAlguno(String texto, List<String> marcadores) =>
+      marcadores.any(texto.contains);
+
+  /// Mensaje breve en español para cada clase de error.
+  static String _mensajeParaClase(_ClaseErrorIa clase) {
+    switch (clase) {
+      case _ClaseErrorIa.temporal:
+      case _ClaseErrorIa.servicioSaturado:
+        return MensajesAsistenteIa.servicioOcupado;
+      case _ClaseErrorIa.modeloNoDisponible:
+        return MensajesAsistenteIa.modeloNoDisponible;
+      case _ClaseErrorIa.apiNoHabilitada:
+        return MensajesAsistenteIa.apiNoHabilitada;
+      case _ClaseErrorIa.sinConexion:
+        return MensajesAsistenteIa.sinConexion;
+      case _ClaseErrorIa.respuestaInvalida:
+        return MensajesAsistenteIa.respuestaInvalida;
+      case _ClaseErrorIa.desconocido:
+        return MensajesAsistenteIa.errorInesperado;
+    }
+  }
+
+  /// Códigos HTTP 5xx (500, 502, 503, 504...) presentes en el mensaje de error.
+  static final RegExp _codigo5xx = RegExp(r'\b5\d{2}\b');
+  static final RegExp _codigo403 = RegExp(r'\b403\b');
+  static final RegExp _codigo404 = RegExp(r'\b404\b');
+  static final RegExp _codigo429 = RegExp(r'\b429\b');
+
+  /// Señales de fallo de red o falta de conexión.
+  static const List<String> _marcadoresSinConexion = <String>[
+    'socketexception',
+    'clientexception',
+    'failed host lookup',
+    'connection closed',
+    'connection reset',
+    'connection refused',
+    'connection aborted',
+    'connection failed',
+    'network is unreachable',
+    'network-request-failed',
+    'network error',
+    'no internet',
+    'not connected',
+    'err_internet_disconnected',
+    'failed to fetch',
+    'xmlhttprequest error',
+  ];
+
+  /// Señales de API deshabilitada o sin permisos (403 / PERMISSION_DENIED).
+  static const List<String> _marcadoresApiNoHabilitada = <String>[
+    'firebase ai logic',
+    'service_api_not_enabled',
+    'serviceapinotenabled',
+    'api has not been used',
+    'has not been used in project',
+    'is disabled',
+    'not enabled',
+    'permission_denied',
+    'permission denied',
+  ];
+
+  /// Señales de modelo inexistente o no soportado (404 / NOT_FOUND).
+  static const List<String> _marcadoresModeloNoDisponible = <String>[
+    'not found',
+    'not_found',
+    'not supported',
+    'not exist',
+    'not available',
+    'no longer available',
+    'listmodels',
+    'list models',
+  ];
+
+  /// Señales de sobrecarga temporal del servicio (reintentables).
+  static const List<String> _marcadoresTemporales = <String>[
+    'server error',
+    'high demand',
+    'overloaded',
+    'over capacity',
+    'unavailable',
+    'internal error',
+    'internal server',
+    'deadline exceeded',
+    'deadline_exceeded',
+  ];
+
+  /// Señales de cuota agotada (429 / RESOURCE_EXHAUSTED): no se reintenta.
+  static const List<String> _marcadoresCuota = <String>[
+    'quota',
+    'resource_exhausted',
+    'resource exhausted',
+    'rate limit',
+    'too many requests',
+  ];
 }
