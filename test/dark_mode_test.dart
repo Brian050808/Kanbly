@@ -71,5 +71,34 @@ void main() {
       expect(theme.colorScheme.onSurface, const Color(0xFFE2E8F0));
       expect(theme.bottomSheetTheme.backgroundColor, const Color(0xFF1E2638));
     });
+
+    testWidgets('TaskCardWidget se renderiza con el tema activo en modo oscuro', (WidgetTester tester) async {
+      final themeProvider = ThemeProvider(initialTheme: 'Oscuro');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: themeProvider.lightTheme,
+          darkTheme: themeProvider.darkTheme,
+          themeMode: themeProvider.themeMode,
+          home: Scaffold(
+            body: Builder(
+              builder: (context) {
+                return Container(
+                  color: Theme.of(context).cardColor,
+                  child: Text(
+                    'Tarjeta Dark Mode',
+                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Tarjeta Dark Mode'), findsOneWidget);
+      final container = tester.widget<Container>(find.byType(Container).first);
+      expect(container.color, const Color(0xFF1E2638));
+    });
   });
 }

@@ -11,6 +11,9 @@ class Usuario {
   final List<String> tablerosIds; // Tableros a los que pertenece
   final bool activo;
 
+  /// Getter de conveniencia para compatibilidad de interfaz
+  String get nombre => nombreCompleto;
+
   Usuario({
     required this.id,
     required this.email,

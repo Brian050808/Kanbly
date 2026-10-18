@@ -224,8 +224,8 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
 
   // --- VISTA DE NOTAS PERSONALES ---
   Widget _construirVistaNotasPersonales(List<BorradorNota> notas) {
-    const Color textoPrincipal = Color(0xFF1E293B);
-    const Color azulCielo = Color(0xFF52ABEB);
+    final theme = Theme.of(context);
+    final Color textoPrincipal = theme.colorScheme.onSurface;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -237,9 +237,9 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
             margin: const EdgeInsets.fromLTRB(16, 12, 16, 6),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-              color: Colors.teal.shade50,
+              color: Colors.teal.shade50.withOpacity(0.2),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.teal.shade200),
+              border: Border.all(color: Colors.teal.shade300),
             ),
             child: const Row(
               children: [
@@ -263,7 +263,7 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.sticky_note_2_outlined, size: 68, color: Colors.grey.shade300),
+                          Icon(Icons.sticky_note_2_outlined, size: 68, color: Colors.grey.shade400),
                           const SizedBox(height: 14),
                           Text(
                             'No tienes notas personales aún',
@@ -273,7 +273,7 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
                           Text(
                             'Crea tus notas personales y conéctalas con tareas del tablero para llevar un mejor control de tus ideas.',
                             textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                            style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
                           ),
                           const SizedBox(height: 18),
                           ElevatedButton.icon(
@@ -312,7 +312,8 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
 
   // --- VISTA DE BORRADORES DE TAREAS ---
   Widget _construirVistaBorradoresTareas(List<BorradorNota> borradores) {
-    const Color textoPrincipal = Color(0xFF1E293B);
+    final theme = Theme.of(context);
+    final Color textoPrincipal = theme.colorScheme.onSurface;
     const Color azulCielo = Color(0xFF52ABEB);
 
     return Scaffold(
@@ -325,9 +326,9 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
             margin: const EdgeInsets.fromLTRB(16, 12, 16, 6),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-              color: azulCielo.withValues(alpha: 0.1),
+              color: azulCielo.withOpacity(0.12),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: azulCielo.withValues(alpha: 0.3)),
+              border: Border.all(color: azulCielo.withOpacity(0.3)),
             ),
             child: const Row(
               children: [
@@ -351,7 +352,7 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.pending_actions_rounded, size: 68, color: Colors.grey.shade300),
+                          Icon(Icons.pending_actions_rounded, size: 68, color: Colors.grey.shade400),
                           const SizedBox(height: 14),
                           Text(
                             'No tienes borradores de tareas programadas',
@@ -361,7 +362,7 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
                           Text(
                             'Crea borradores de tareas previas para publicarlas oficialmente o programar su salida en el tablero.',
                             textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                            style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
                           ),
                           const SizedBox(height: 18),
                           ElevatedButton.icon(
@@ -400,7 +401,9 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
 
   // --- TARJETA EXCLUSIVA PARA NOTA PERSONAL ---
   Widget _tarjetaNotaPersonal(BorradorNota nota) {
-    const Color textoPrincipal = Color(0xFF1E293B);
+    final theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
+    final Color textoPrincipal = theme.colorScheme.onSurface;
     final colorVal = int.tryParse(nota.colorHex) ?? 0xFF009688;
     final colorEtiqueta = Color(colorVal);
 
@@ -409,7 +412,7 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: colorEtiqueta.withValues(alpha: 0.4), width: 1.5),
         boxShadow: [
@@ -444,7 +447,7 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
                 ),
                 Text(
                   FormatoUtil.formatearFechaHora(nota.fechaCreacion),
-                  style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                  style: TextStyle(fontSize: 10, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
                 ),
               ],
             ),
@@ -499,7 +502,7 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
 
           // ADJUNTOS
           if (nota.adjuntos.isNotEmpty) ...[
-            const Divider(height: 1, thickness: 1),
+            Divider(height: 1, thickness: 1, color: isDark ? const Color(0xFF2D3748) : Colors.grey.shade200),
             Padding(
               padding: const EdgeInsets.all(10),
               child: Wrap(
@@ -511,16 +514,16 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF1F5F9),
+                        color: isDark ? const Color(0xFF121824) : const Color(0xFFF1F5F9),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey.shade300),
+                        border: Border.all(color: isDark ? const Color(0xFF2D3748) : Colors.grey.shade300),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           _obtenerIconoTipoAdjunto(adj.tipo, adj.nombre),
                           const SizedBox(width: 4),
-                          Text(adj.nombre, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600)),
+                          Text(adj.nombre, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: textoPrincipal)),
                         ],
                       ),
                     ),
@@ -530,7 +533,7 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
             ),
           ],
 
-          const Divider(height: 1, thickness: 1),
+          Divider(height: 1, thickness: 1, color: isDark ? const Color(0xFF2D3748) : Colors.grey.shade200),
 
           // BARRA DE ACCIONES NOTA: EDITAR Y ELIMINAR
           Padding(
@@ -567,7 +570,9 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
 
   // --- TARJETA EXCLUSIVA PARA BORRADOR DE TAREA ---
   Widget _tarjetaBorradorTarea(BorradorNota borrador) {
-    const Color textoPrincipal = Color(0xFF1E293B);
+    final theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
+    final Color textoPrincipal = theme.colorScheme.onSurface;
     const Color azulCielo = Color(0xFF52ABEB);
     final colorVal = int.tryParse(borrador.colorHex) ?? 0xFF52ABEB;
     final colorEtiqueta = Color(colorVal);
@@ -591,7 +596,7 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: colorEtiqueta.withValues(alpha: 0.4), width: 1.5),
         boxShadow: [
@@ -626,7 +631,7 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
                 ),
                 Text(
                   FormatoUtil.formatearFechaHora(borrador.fechaCreacion),
-                  style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                  style: TextStyle(fontSize: 10, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
                 ),
               ],
             ),
@@ -722,7 +727,7 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
 
           // ADJUNTOS
           if (borrador.adjuntos.isNotEmpty) ...[
-            const Divider(height: 1, thickness: 1),
+            Divider(height: 1, thickness: 1, color: isDark ? const Color(0xFF2D3748) : Colors.grey.shade200),
             Padding(
               padding: const EdgeInsets.all(12),
               child: Wrap(
@@ -734,16 +739,16 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF1F5F9),
+                        color: isDark ? const Color(0xFF121824) : const Color(0xFFF1F5F9),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey.shade300),
+                        border: Border.all(color: isDark ? const Color(0xFF2D3748) : Colors.grey.shade300),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           _obtenerIconoTipoAdjunto(adj.tipo, adj.nombre),
                           const SizedBox(width: 6),
-                          Text(adj.nombre, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                          Text(adj.nombre, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: textoPrincipal)),
                         ],
                       ),
                     ),
@@ -753,7 +758,7 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
             ),
           ],
 
-          const Divider(height: 1, thickness: 1),
+          Divider(height: 1, thickness: 1, color: isDark ? const Color(0xFF2D3748) : Colors.grey.shade200),
 
           // BARRA DE ACCIONES BORRADOR TAREA: EDITAR, ELIMINAR Y PUBLICAR
           Padding(
@@ -798,6 +803,10 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
   // FORMULARIO INDEPENDIENTE 1: FORMULARIO EXCLUSIVO PARA NOTAS PERSONALES
   // =========================================================================
   void _abrirFormularioNotaPersonal({BorradorNota? nota, Tarea? tareaPreseleccionada}) async {
+    final theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
+    final Color textoPrincipal = theme.colorScheme.onSurface;
+
     final esEdicion = nota != null;
     final tituloController = TextEditingController(text: nota?.titulo ?? '');
     final contenidoController = TextEditingController(text: nota?.contenido ?? '');
@@ -820,6 +829,7 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: theme.cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -827,9 +837,9 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
         return StatefulBuilder(
           builder: (context, setModalState) {
             return Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              decoration: BoxDecoration(
+                color: theme.cardColor,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
               ),
               padding: EdgeInsets.only(
                 bottom: MediaQuery.of(context).viewInsets.bottom + 16,
@@ -850,7 +860,7 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
                             const SizedBox(width: 8),
                             Text(
                               esEdicion ? 'Editar Nota Personal' : 'Nueva Nota Personal',
-                              style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B)),
+                              style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.bold, color: textoPrincipal),
                             ),
                           ],
                         ),
@@ -865,13 +875,13 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
                     // CAMPO: TÍTULO DE LA NOTA
                     TextFormField(
                       controller: tituloController,
-                      style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600, color: const Color(0xFF1E293B)),
+                      style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600, color: textoPrincipal),
                       decoration: InputDecoration(
                         labelText: 'Título de la Nota *',
                         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                         filled: true,
-                        fillColor: const Color(0xFFF8FAFC),
+                        fillColor: isDark ? const Color(0xFF121824) : const Color(0xFFF8FAFC),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -881,28 +891,29 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
                       controller: contenidoController,
                       minLines: 3,
                       maxLines: 5,
-                      style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF1E293B), height: 1.4),
+                      style: GoogleFonts.inter(fontSize: 13, color: textoPrincipal, height: 1.4),
                       decoration: InputDecoration(
                         labelText: 'Anotaciones y Detalles (Opcional)',
                         contentPadding: const EdgeInsets.all(12),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                         filled: true,
-                        fillColor: const Color(0xFFF8FAFC),
+                        fillColor: isDark ? const Color(0xFF121824) : const Color(0xFFF8FAFC),
                       ),
                     ),
                     const SizedBox(height: 14),
 
                     // SELECTOR DE TAREA VINCULADA DEL TABLERO
-                    Text('Vincular a una Tarea del Tablero (Opcional):', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B))),
+                    Text('Vincular a una Tarea del Tablero (Opcional):', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: textoPrincipal)),
                     const SizedBox(height: 6),
                     DropdownButtonFormField<String?>(
                       value: tareasTablero.any((t) => t.id == tareaIdVinculada) ? tareaIdVinculada : null,
                       isExpanded: true,
+                      dropdownColor: theme.cardColor,
                       decoration: InputDecoration(
                         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                         filled: true,
-                        fillColor: const Color(0xFFF8FAFC),
+                        fillColor: isDark ? const Color(0xFF121824) : const Color(0xFFF8FAFC),
                       ),
                       hint: const Text('-- Ninguna (Nota Suelta) --', style: TextStyle(fontSize: 12, color: Colors.grey)),
                       items: [
@@ -1127,6 +1138,10 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
   // FORMULARIO INDEPENDIENTE 2: FORMULARIO EXCLUSIVO PARA BORRADORES DE TAREAS
   // =========================================================================
   void _abrirFormularioBorrador({BorradorNota? borrador}) {
+    final theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
+    final Color textoPrincipal = theme.colorScheme.onSurface;
+
     final esEdicion = borrador != null;
     final tituloController = TextEditingController(text: borrador?.titulo ?? '');
     final contenidoController = TextEditingController(text: borrador?.contenido ?? '');
@@ -1142,6 +1157,7 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: theme.cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -1153,9 +1169,9 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
                 : const ['Pendiente', 'En progreso', 'Completada'];
 
             return Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              decoration: BoxDecoration(
+                color: theme.cardColor,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
               ),
               padding: EdgeInsets.only(
                 bottom: MediaQuery.of(context).viewInsets.bottom + 16,
@@ -1176,7 +1192,7 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
                             const SizedBox(width: 8),
                             Text(
                               esEdicion ? 'Editar Borrador de Tarea' : 'Nuevo Borrador de Tarea',
-                              style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B)),
+                              style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.bold, color: textoPrincipal),
                             ),
                           ],
                         ),
@@ -1191,13 +1207,13 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
                     // CAMPO: TÍTULO DEL BORRADOR
                     TextFormField(
                       controller: tituloController,
-                      style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600, color: const Color(0xFF1E293B)),
+                      style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600, color: textoPrincipal),
                       decoration: InputDecoration(
                         labelText: 'Título de la Tarea en Borrador *',
                         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                         filled: true,
-                        fillColor: const Color(0xFFF8FAFC),
+                        fillColor: isDark ? const Color(0xFF121824) : const Color(0xFFF8FAFC),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -1207,13 +1223,13 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
                       controller: contenidoController,
                       minLines: 3,
                       maxLines: 5,
-                      style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF1E293B), height: 1.4),
+                      style: GoogleFonts.inter(fontSize: 13, color: textoPrincipal, height: 1.4),
                       decoration: InputDecoration(
                         labelText: 'Descripción y Detalles del Borrador (Opcional)',
                         contentPadding: const EdgeInsets.all(12),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                         filled: true,
-                        fillColor: const Color(0xFFF8FAFC),
+                        fillColor: isDark ? const Color(0xFF121824) : const Color(0xFFF8FAFC),
                       ),
                     ),
                     const SizedBox(height: 14),
@@ -1223,7 +1239,7 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('Asignar Integrantes:', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B))),
+                          Text('Asignar Integrantes:', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: textoPrincipal)),
                           Text(
                             asignadosA.isEmpty
                                 ? 'Sin asignar (0)'
@@ -1244,13 +1260,13 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
                                     final estaSeleccionado = asignadosA.contains(m.id);
                                     return FilterChip(
                                       avatar: CircleAvatar(
-                                        backgroundColor: estaSeleccionado ? Colors.white : Colors.grey.shade300,
+                                        backgroundColor: estaSeleccionado ? Colors.white : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
                                         child: Text(
                                           m.nombreCompleto.isNotEmpty ? m.nombreCompleto[0].toUpperCase() : '?',
                                           style: TextStyle(
                                             fontSize: 10,
                                             fontWeight: FontWeight.bold,
-                                            color: estaSeleccionado ? const Color(0xFF52ABEB) : Colors.grey.shade700,
+                                            color: estaSeleccionado ? const Color(0xFF52ABEB) : (isDark ? Colors.grey.shade300 : Colors.grey.shade700),
                                           ),
                                         ),
                                       ),
@@ -1259,17 +1275,17 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
                                         style: TextStyle(
                                           fontSize: 12,
                                           fontWeight: estaSeleccionado ? FontWeight.bold : FontWeight.normal,
-                                          color: estaSeleccionado ? Colors.white : const Color(0xFF1E293B),
+                                          color: estaSeleccionado ? Colors.white : textoPrincipal,
                                         ),
                                       ),
                                       selected: estaSeleccionado,
                                       selectedColor: const Color(0xFF52ABEB),
                                       checkmarkColor: Colors.white,
-                                      backgroundColor: const Color(0xFFF8FAFC),
+                                      backgroundColor: isDark ? const Color(0xFF121824) : const Color(0xFFF8FAFC),
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(12),
                                         side: BorderSide(
-                                          color: estaSeleccionado ? const Color(0xFF52ABEB) : Colors.grey.shade300,
+                                          color: estaSeleccionado ? const Color(0xFF52ABEB) : (isDark ? const Color(0xFF2D3748) : Colors.grey.shade300),
                                         ),
                                       ),
                                       onSelected: (bool selected) {
@@ -1288,7 +1304,7 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
                     ],
 
                     // PRIORIDAD
-                    Text('Prioridad:', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B))),
+                    Text('Prioridad:', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: textoPrincipal)),
                     const SizedBox(height: 6),
                     Row(
                       children: [
@@ -1300,7 +1316,7 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
                     const SizedBox(height: 14),
 
                     // PROGRAMAR FECHA Y HORA DE PUBLICACIÓN AUTOMÁTICA
-                    Text('Publicación Automatizada:', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B))),
+                    Text('Publicación Automatizada:', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: textoPrincipal)),
                     const SizedBox(height: 6),
                     Row(
                       children: [
@@ -1315,7 +1331,7 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
                               fechaProgramada == null
                                   ? 'Programar Fecha y Hora'
                                   : 'Programado: ${FormatoUtil.formatearFechaHora(fechaProgramada!)}',
-                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textoPrincipal),
                             ),
                             onPressed: () async {
                               final fecha = await showDatePicker(
@@ -1352,7 +1368,7 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
                     const SizedBox(height: 14),
 
                     // COLUMNA DESTINO
-                    Text('Columna Destino al Publicar:', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B))),
+                    Text('Columna Destino al Publicar:', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: textoPrincipal)),
                     const SizedBox(height: 6),
                     SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
@@ -1365,16 +1381,16 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
                               margin: const EdgeInsets.only(right: 8),
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                               decoration: BoxDecoration(
-                                color: seleccionada ? const Color(0xFF52ABEB) : const Color(0xFFF1F5F9),
+                                color: seleccionada ? const Color(0xFF52ABEB) : (isDark ? const Color(0xFF121824) : const Color(0xFFF1F5F9)),
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: seleccionada ? const Color(0xFF52ABEB) : Colors.grey.shade300),
+                                border: Border.all(color: seleccionada ? const Color(0xFF52ABEB) : (isDark ? const Color(0xFF2D3748) : Colors.grey.shade300)),
                               ),
                               child: Text(
                                 col,
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
-                                  color: seleccionada ? Colors.white : const Color(0xFF1E293B),
+                                  color: seleccionada ? Colors.white : textoPrincipal,
                                 ),
                               ),
                             ),
@@ -1390,7 +1406,7 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
                       children: [
                         Text(
                           'Archivos Adjuntos (${adjuntosTemporales.length}):',
-                          style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B)),
+                          style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: textoPrincipal),
                         ),
                         TextButton.icon(
                           onPressed: () => _mostrarMenuAdjuntarEnModal(setModalState, adjuntosTemporales),
@@ -1575,6 +1591,7 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
   }
 
   Widget _botonPrioridadForm(int valor, String texto, Color color, int seleccionada, Function(int) onTap) {
+    final theme = Theme.of(context);
     final activo = seleccionada == valor;
     return Expanded(
       child: GestureDetector(
@@ -1591,7 +1608,7 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
           child: Text(
             texto,
             style: TextStyle(
-              color: activo ? Colors.white : const Color(0xFF1E293B),
+              color: activo ? Colors.white : theme.colorScheme.onSurface,
               fontWeight: FontWeight.bold,
               fontSize: 12,
             ),
@@ -1603,8 +1620,10 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
 
   // ADJUNTAR ARCHIVO DENTRO DEL MODAL
   void _mostrarMenuAdjuntarEnModal(StateSetter setModalState, List<AdjuntoTarea> listaAdjuntos) {
+    final theme = Theme.of(context);
     showModalBottomSheet(
       context: context,
+      backgroundColor: theme.cardColor,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) {
         return SafeArea(
@@ -1613,7 +1632,7 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('Adjuntar Archivo (Máx. 10MB)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                Text('Adjuntar Archivo (Máx. 10MB)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: theme.colorScheme.onSurface)),
                 const SizedBox(height: 12),
                 ListTile(
                   leading: const CircleAvatar(backgroundColor: Color(0xFFEBF8FF), child: Icon(Icons.image_rounded, color: Color(0xFF52ABEB))),
@@ -1725,6 +1744,10 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
 
   // MODAL PARA PUBLICAR
   void _mostrarModalPublicarTarea(BorradorNota borrador) {
+    final theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
+    final Color textoPrincipal = theme.colorScheme.onSurface;
+
     final columnas = widget.tablero.columnas.isNotEmpty
         ? widget.tablero.columnas
         : const ['Pendiente', 'En progreso', 'Completada'];
@@ -1736,6 +1759,7 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
 
     showModalBottomSheet(
       context: context,
+      backgroundColor: theme.cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -1750,25 +1774,26 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
                 children: [
                   Text(
                     '🚀 Publicar como Tarea Oficial',
-                    style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B)),
+                    style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: textoPrincipal),
                   ),
                   const SizedBox(height: 6),
                   Text(
                     'Se creará la tarea "${borrador.titulo}" en el tablero, incluyendo sus ${borrador.adjuntos.length} archivos adjuntos.',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    style: TextStyle(fontSize: 12, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
                   ),
                   const SizedBox(height: 16),
 
                   DropdownButtonFormField<String>(
                     value: columnaSeleccionada,
+                    dropdownColor: theme.cardColor,
                     decoration: InputDecoration(
                       labelText: 'Columna Destino',
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                       filled: true,
-                      fillColor: Colors.grey.shade50,
+                      fillColor: isDark ? const Color(0xFF121824) : Colors.grey.shade50,
                     ),
                     items: columnas.map((col) {
-                      return DropdownMenuItem(value: col, child: Text(col));
+                      return DropdownMenuItem(value: col, child: Text(col, style: TextStyle(color: textoPrincipal)));
                     }).toList(),
                     onChanged: (val) {
                       if (val != null) setModalState(() => columnaSeleccionada = val);
@@ -1776,7 +1801,7 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
                   ),
                   const SizedBox(height: 14),
 
-                  const Text('Prioridad Inicial:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                  Text('Prioridad Inicial:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: textoPrincipal)),
                   const SizedBox(height: 8),
                   Row(
                     children: [
@@ -1832,6 +1857,7 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
   }
 
   Widget _botonPrioridadModal(int valor, String texto, Color color, int seleccionada, Function(int) onTap) {
+    final theme = Theme.of(context);
     final activo = seleccionada == valor;
     return Expanded(
       child: GestureDetector(
@@ -1848,7 +1874,7 @@ class _PantallaBorradoresPersonalesState extends State<PantallaBorradoresPersona
           child: Text(
             texto,
             style: TextStyle(
-              color: activo ? Colors.white : const Color(0xFF1E293B),
+              color: activo ? Colors.white : theme.colorScheme.onSurface,
               fontWeight: FontWeight.bold,
               fontSize: 12,
             ),

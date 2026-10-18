@@ -53,6 +53,10 @@
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Kanbly necesita acceso al micrófono para dictar tareas mediante voz.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Kanbly necesita reconocimiento de voz para convertir tus dictados en tareas.</string>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>

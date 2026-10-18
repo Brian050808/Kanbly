@@ -257,6 +257,37 @@ class FirestoreService {
     }
   }
 
+  /// Crea un lote de tareas en Firestore de forma atómica usando WriteBatch.
+  /// Programa notificaciones locales de vencimiento ÚNICAMENTE si el commit del batch fue exitoso (Ajuste 9).
+  Future<void> crearTareasEnLote(List<Tarea> tareas) async {
+    if (tareas.isEmpty) return;
+
+    try {
+      final batch = _firestore.batch();
+
+      for (final tarea in tareas) {
+        final docRef = _firestore.collection('tareas').doc(tarea.id);
+        batch.set(docRef, tarea.toMap());
+      }
+
+      // 1. Ejecutar el commit del batch en Firestore
+      await batch.commit();
+
+      // 2. SOLO después de que el commit sea exitoso, programar notificaciones de vencimiento
+      for (final tarea in tareas) {
+        if (tarea.fechaVencimiento != null) {
+          try {
+            await NotificacionVencimientoService.programar(tarea);
+          } catch (e) {
+            print('Error al programar notificación para tarea ${tarea.id}: $e');
+          }
+        }
+      }
+    } catch (e) {
+      throw Exception('Error al guardar las tareas en lote: $e');
+    }
+  }
+
   Future<List<Tarea>> obtenerTareasDeTablero(String tableroId) async {
     try {
       final querySnapshot = await _firestore
