@@ -692,10 +692,14 @@ class _KanbanBoardWidgetState extends State<KanbanBoardWidget> {
     }
 
     if (tipoModulo == 'recordatorios') {
+      if (tableroActivo == null) return;
+
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => const Recordatorios(),
+          builder: (context) => Recordatorios(
+            tableroId: tableroActivo.id,
+          ),
         ),
       );
       return;

@@ -1,6 +1,7 @@
 
 class Recordatorio {
   final String id;
+  final String tableroId;
   final String titulo;
   final String descripcion;
   final DateTime fechaHora;
@@ -8,6 +9,7 @@ class Recordatorio {
 
   const Recordatorio({
     required this.id,
+    required this.tableroId,
     required this.titulo,
     required this.descripcion,
     required this.fechaHora,
@@ -17,6 +19,7 @@ class Recordatorio {
   Map<String, dynamic> toMap() {
     return {
       'id': id,
+      'tableroId': tableroId,
       'titulo': titulo,
       'descripcion': descripcion,
       'fechaHora': fechaHora.toIso8601String(),
@@ -27,6 +30,7 @@ class Recordatorio {
   factory Recordatorio.fromMap(Map<String, dynamic> map) {
     return Recordatorio(
       id: map['id'] as String,
+      tableroId: map['tableroId'] as String? ?? '',
       titulo: map['titulo'] as String,
       descripcion: map['descripcion'] as String? ?? '',
       fechaHora: DateTime.parse(map['fechaHora'] as String),
@@ -35,6 +39,7 @@ class Recordatorio {
   }
 
   Recordatorio copyWith({
+    String? tableroId,
     String? titulo,
     String? descripcion,
     DateTime? fechaHora,
@@ -42,6 +47,7 @@ class Recordatorio {
   }) {
     return Recordatorio(
       id: id,
+      tableroId: tableroId ?? this.tableroId,
       titulo: titulo ?? this.titulo,
       descripcion: descripcion ?? this.descripcion,
       fechaHora: fechaHora ?? this.fechaHora,

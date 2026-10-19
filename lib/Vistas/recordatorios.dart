@@ -8,15 +8,139 @@ import '../servicios/notificacion_recordatorio_service.dart';
 
 
 class Recordatorios extends StatefulWidget {
-  const Recordatorios({super.key});
+  final String tableroId;
+
+  const Recordatorios({
+    super.key,
+    required this.tableroId,
+  });
 
   @override
   State<Recordatorios> createState() => _RecordatoriosState();
 }
 
 class _RecordatoriosState extends State<Recordatorios> {
+
+  Widget _construirLista(
+      List<Recordatorio> recordatorios,
+      bool esHistorial,
+      ) {
+    if (recordatorios.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              esHistorial
+                  ? Icons.history
+                  : Icons.notifications_none,
+              size: 64,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              esHistorial
+                  ? 'Todavía no tienes recordatorios anteriores'
+                  : 'No tienes recordatorios programados',
+            ),
+            if (!esHistorial)
+              const Text('Pulsa + para crear uno.'),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      itemCount: recordatorios.length,
+      itemBuilder: (context, index) {
+        final recordatorio = recordatorios[index];
+
+        return Card(
+          margin: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 6,
+          ),
+          child: ListTile(
+            leading: CircleAvatar(
+              child: Icon(
+                esHistorial
+                    ? Icons.history
+                    : Icons.notifications_active,
+              ),
+            ),
+            title: Text(recordatorio.titulo),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (recordatorio.descripcion.isNotEmpty)
+                  Text(recordatorio.descripcion),
+                Text(
+                  DateFormat('dd/MM/yyyy HH:mm')
+                      .format(recordatorio.fechaHora),
+                ),
+                if (esHistorial)
+                  const Text(
+                    'Fecha vencida',
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontSize: 12,
+                    ),
+                  ),
+                if (recordatorio.notificado)
+                  const Text(
+                    '✓ Notificación enviada',
+                    style: TextStyle(
+                      color: Colors.green,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+              ],
+            ),
+            trailing: IconButton(
+              tooltip: 'Eliminar recordatorio',
+              icon: const Icon(Icons.delete_outline),
+              onPressed: () =>
+                  _eliminarRecordatorio(recordatorio),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   final RecordatorioService _recordatorioService =
   RecordatorioService();
+
+  DateTime get _ahora => DateTime.now();
+
+  List<Recordatorio> _obtenerProgramados(
+      List<Recordatorio> recordatorios,
+      ) {
+    final ahora = _ahora;
+
+    final lista = recordatorios
+        .where((r) => r.fechaHora.isAfter(ahora))
+        .toList();
+
+    lista.sort((a, b) => a.fechaHora.compareTo(b.fechaHora));
+
+    return lista;
+  }
+
+  List<Recordatorio> _obtenerHistorial(
+      List<Recordatorio> recordatorios,
+      ) {
+    final ahora = _ahora;
+
+    final lista = recordatorios
+        .where((r) => !r.fechaHora.isAfter(ahora))
+        .toList();
+
+    lista.sort((a, b) => b.fechaHora.compareTo(a.fechaHora));
+
+    return lista;
+  }
 
   @override
   void initState() {
@@ -158,9 +282,9 @@ class _RecordatoriosState extends State<Recordatorios> {
                         id: DateTime.now()
                             .microsecondsSinceEpoch
                             .toString(),
+                        tableroId: widget.tableroId,
                         titulo: titulo,
-                        descripcion:
-                        descripcionController.text.trim(),
+                        descripcion: descripcionController.text.trim(),
                         fechaHora: fechaSeleccionada,
                       );
 
@@ -255,9 +379,9 @@ class _RecordatoriosState extends State<Recordatorios> {
       appBar: AppBar(
         title: const Text('Mis recordatorios'),
       ),
+
       body: StreamBuilder<List<Recordatorio>>(
-        stream: _recordatorioService.obtenerTodos(),
-        builder: (context, snapshot) {
+        stream: _recordatorioService.obtenerTodos(widget.tableroId),        builder: (context, snapshot) {
           if (snapshot.hasError) {
             return const Center(
               child: Text(
@@ -268,8 +392,7 @@ class _RecordatoriosState extends State<Recordatorios> {
             );
           }
 
-          if (snapshot.connectionState ==
-              ConnectionState.waiting) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
               child: CircularProgressIndicator(),
             );
@@ -277,80 +400,39 @@ class _RecordatoriosState extends State<Recordatorios> {
 
           final recordatorios = snapshot.data ?? [];
 
-         /* _recordatorioService.marcarVencidosComoNotificados(
-            recordatorios,
-          ).catchError((error) {
-            debugPrint('Error al actualizar recordatorios: $error');
-          });*/
+          final programados = _obtenerProgramados(recordatorios);
+          final historial = _obtenerHistorial(recordatorios);
 
-          if (recordatorios.isEmpty) {
-            return const Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.notifications_none,
-                    size: 64,
-                  ),
-                  SizedBox(height: 12),
-                  Text('Todavía no tienes recordatorios'),
-                  Text('Pulsa + para crear uno.'),
-                ],
-              ),
-            );
-          }
-
-          return ListView.builder(
-            itemCount: recordatorios.length,
-            itemBuilder: (context, index) {
-              final recordatorio = recordatorios[index];
-
-              return Card(
-                margin: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                child: ListTile(
-                  leading: const CircleAvatar(
-                    child: Icon(
-                      Icons.notifications_active,
+          return DefaultTabController(
+            length: 2,
+            child: Column(
+              children: [
+                const TabBar(
+                  tabs: [
+                    Tab(
+                      icon: Icon(Icons.notifications_active_outlined),
+                      text: 'Programados',
                     ),
-                  ),
-                  title: Text(recordatorio.titulo),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
+                    Tab(
+                      icon: Icon(Icons.history),
+                      text: 'Historial',
+                    ),
+                  ],
+                ),
+                Expanded(
+                  child: TabBarView(
                     children: [
-                      if (recordatorio.descripcion.isNotEmpty)
-                        Text(recordatorio.descripcion),
-                      Text(
-                        DateFormat('dd/MM/yyyy HH:mm')
-                            .format(recordatorio.fechaHora),
-                      ),
-                      if (recordatorio.notificado)
-                        const Text(
-                          '✓ Notificación enviada',
-                          style: TextStyle(
-                            color: Colors.green,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
+                      _construirLista(programados, false),
+                      _construirLista(historial, true),
                     ],
                   ),
-
-                  trailing: IconButton(
-                    tooltip: 'Eliminar recordatorio',
-                    icon: const Icon(Icons.delete_outline),
-                    onPressed: () =>
-                        _eliminarRecordatorio(recordatorio),
-                  ),
                 ),
-              );
-            },
+              ],
+            ),
           );
         },
       ),
+
       floatingActionButton: FloatingActionButton(
         onPressed: _crearRecordatorio,
         tooltip: 'Crear recordatorio',

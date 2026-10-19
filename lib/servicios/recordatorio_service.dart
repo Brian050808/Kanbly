@@ -15,7 +15,9 @@ class RecordatorioService {
     final usuario = _auth.currentUser;
 
     if (usuario == null) {
-      throw Exception('Debes iniciar sesión para gestionar recordatorios.');
+      throw Exception(
+        'Debes iniciar sesión para gestionar recordatorios.',
+      );
     }
 
     return _firestore
@@ -25,13 +27,24 @@ class RecordatorioService {
   }
 
   Future<void> guardar(Recordatorio recordatorio) async {
+    if (recordatorio.tableroId.isEmpty) {
+      throw Exception(
+        'El recordatorio debe pertenecer a un tablero.',
+      );
+    }
+
     await _coleccionRecordatorios()
         .doc(recordatorio.id)
         .set(recordatorio.toMap());
   }
 
-  Stream<List<Recordatorio>> obtenerTodos() {
+  Stream<List<Recordatorio>> obtenerTodos(String tableroId) {
+    if (tableroId.isEmpty) {
+      throw Exception('No se ha especificado un tablero.');
+    }
+
     return _coleccionRecordatorios()
+        .where('tableroId', isEqualTo: tableroId)
         .snapshots()
         .map((snapshot) {
       final recordatorios = snapshot.docs.map((doc) {
@@ -71,5 +84,4 @@ class RecordatorioService {
       }
     }
   }
-
 }
