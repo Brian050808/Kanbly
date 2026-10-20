@@ -9,13 +9,26 @@ void main() {
   group('Caso 1: Pruebas de Integración de Autenticación', () {
     testWidgets('Validar rechazo de correo no institucional y login exitoso', (WidgetTester tester) async {
       // 1. Levantar la aplicación
-      app.main();
+      await app.main();
       await tester.pumpAndSettle();
+      print('Widgets encontrados:');
+      print(tester.widgetList(find.byType(TextFormField)).length);
+      debugDumpApp();
 
       // 2. Localizar los campos de texto
-      final campoCorreo = find.widgetWithText(TextFormField, 'Correo institucional');
-      final campoPassword = find.widgetWithText(TextFormField, 'Contraseña');
-      final botonLogin = find.widgetWithText(ElevatedButton, 'Iniciar Sesión');
+// 2. Localizar los campos de texto y el botón
+      final camposTexto = find.byType(TextFormField);
+
+      expect(
+        camposTexto,
+        findsNWidgets(2),
+        reason: 'Se esperaban los campos de correo y contraseña',
+      );
+
+      final campoCorreo = camposTexto.at(0);
+      final campoPassword = camposTexto.at(1);
+
+      final botonLogin = find.text('Iniciar Sesión');
 
       // --- PRUEBA A: RECHAZO DE DOMINIO INCORRECTO ---
       await tester.enterText(campoCorreo, 'estudiante@gmail.com');

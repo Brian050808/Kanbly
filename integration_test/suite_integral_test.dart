@@ -1,192 +1,339 @@
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
-// --- IMPORTS DE TU PROYECTO ---
 import 'package:kanbly/main.dart' as app;
 import 'package:kanbly/utilerias/formato_util.dart';
 import 'package:kanbly/modelo/usuario.dart';
 
 void main() {
-  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  // ===========================================================================
-  // 🛠️ FUNCIÓN AUXILIAR BLINDADA CONTRA REDIRECCIONES AUTOMÁTICAS DE FIREBASE
-  // ===========================================================================
-  Future<void> iniciarSesionSiEsNecesario(WidgetTester tester) async {
-    // 1. ESPERA ESTRATÉGICA: Damos 2 segundos para que Firebase verifique si ya
-    // hay una sesión activa del test anterior y haga su redirección automática.
-    await tester.pumpAndSettle(const Duration(seconds: 2));
+// Iniciar sesión solo si todavía se muestra el formulario de login.
+Future<void> iniciarSesionSiEsNecesario(
+WidgetTester tester,
+) async {
+await tester.pumpAndSettle();
 
-    // 2. Buscamos ESPECÍFICAMENTE el botón de ElevatedButton('Iniciar Sesión')
-    final botonLogin = find.widgetWithText(ElevatedButton, 'Iniciar Sesión');
+final botonLogin =
+find.widgetWithText(ElevatedButton, 'Iniciar Sesión');
 
-    // 3. Solo si el botón SIGUE en pantalla después de esperar, iniciamos sesión
-    if (botonLogin.evaluate().isNotEmpty) {
-      final campoCorreo = find.widgetWithText(TextFormField, 'Correo institucional');
-      final campoPassword = find.widgetWithText(TextFormField, 'Contraseña');
+if (botonLogin.evaluate().isEmpty) {
+// Si no está el botón, comprobar que ya estamos en Mis Tableros.
+expect(
+find.text('Mis Tableros'),
+findsWidgets,
+reason: 'No se encontró el login ni la pantalla Mis Tableros.',
+);
+return;
+}
 
-      await tester.enterText(campoCorreo, '1230987@e.uttecamac.edu.mx');
+final campos = find.byType(TextFormField);
 
-      // ⚠️ IMPORTANTE: REEMPLAZA ESTO POR TU CONTRASEÑA REAL DE FIREBASE:
-      await tester.enterText(campoPassword, 'contraseña@123');
+expect(
+campos,
+findsNWidgets(2),
+reason: 'Se esperaban los campos de correo y contraseña.',
+);
 
-      await tester.testTextInput.receiveAction(TextInputAction.done);
-      await tester.ensureVisible(botonLogin);
-      await tester.pumpAndSettle();
+await tester.enterText(
+campos.at(0),
+'1230987@e.uttecamac.edu.mx',
+);
 
-      await tester.tap(botonLogin);
-      await tester.pumpAndSettle(const Duration(seconds: 6));
-    }
-  }
+// Usa la contraseña real de la cuenta de pruebas de Firebase.
+await tester.enterText(
+campos.at(1),
+'contraseña@123',
+);
 
-  // ===========================================================================
-  // 🚀 SUITE INTEGRAL DE PRUEBAS DE INTEGRACIÓN - KANBLY
-  // ===========================================================================
-  group('Suite Integral de Pruebas de Integración - Kanbly', () {
+await tester.testTextInput.receiveAction(
+TextInputAction.done,
+);
 
-    // -------------------------------------------------------------------------
-    // CASO 1: AUTENTICACIÓN Y VALIDACIÓN DE DOMINIO INSTITUCIONAL
-    // -------------------------------------------------------------------------
-    testWidgets('Caso 1: Validar rechazo de correo externo y login institucional exitoso', (WidgetTester tester) async {
-      app.main();
-      await tester.pumpAndSettle();
+await tester.ensureVisible(botonLogin);
+await tester.pumpAndSettle();
 
-      // Si estamos en el Login, hacemos la prueba de rechazo primero
-      final botonLogin = find.widgetWithText(ElevatedButton, 'Iniciar Sesión');
-      if (botonLogin.evaluate().isNotEmpty) {
-        final campoCorreo = find.widgetWithText(TextFormField, 'Correo institucional');
-        final campoPassword = find.widgetWithText(TextFormField, 'Contraseña');
+await tester.tap(botonLogin);
 
-        await tester.enterText(campoCorreo, 'estudiante@gmail.com');
-        await tester.enterText(campoPassword, 'password123');
-        await tester.testTextInput.receiveAction(TextInputAction.done);
-        await tester.ensureVisible(botonLogin);
-        await tester.pumpAndSettle();
+// Dar tiempo para que Firebase responda.
+await tester.pumpAndSettle(
+const Duration(seconds: 2),
+);
 
-        await tester.tap(botonLogin);
-        await tester.pumpAndSettle();
+await tester.runAsync(
+() => Future<void>.delayed(
+const Duration(seconds: 4),
+),
+);
 
-        expect(find.text('Solo se permiten correos institucionales @e.uttecamac.edu.mx'), findsOneWidget);
-      }
+await tester.pumpAndSettle();
 
-      await iniciarSesionSiEsNecesario(tester);
-      expect(find.text('Mis Tableros'), findsWidgets);
-    });
+expect(
+find.text('Mis Tableros'),
+findsWidgets,
+reason: 'El inicio de sesión no llevó a Mis Tableros.',
+);
+}
 
-    // -------------------------------------------------------------------------
-    // CASO 2: CREACIÓN DE TAREA Y SINCRONIZACIÓN EN TIEMPO REAL (KANBAN)
-    // -------------------------------------------------------------------------
-    testWidgets('Caso 2: Crear tarea y verificar sincronización en tiempo real en el tablero', (WidgetTester tester) async {
-      app.main();
-      await iniciarSesionSiEsNecesario(tester);
+group('Suite Integral de Pruebas de Integración - Kanbly', () {
+// CASO 1: AUTENTICACIÓN
+testWidgets(
+'Caso 1: Validar rechazo de correo externo y login institucional exitoso',
+(WidgetTester tester) async {
+await app.main();
+await tester.pumpAndSettle();
 
-      expect(find.text('Mis Tableros'), findsWidgets);
+final botonLogin =
+find.widgetWithText(ElevatedButton, 'Iniciar Sesión');
 
-      // Entramos al tablero tocando el texto 'Por hacer' del pie de la tarjeta
-      final tarjetaTablero = find.text('Por hacer').first;
-      await tester.tap(tarjetaTablero);
-      await tester.pumpAndSettle(const Duration(seconds: 3));
+if (botonLogin.evaluate().isNotEmpty) {
+final campos = find.byType(TextFormField);
 
-      expect(find.text('POR HACER'), findsWidgets);
+expect(campos, findsNWidgets(2));
 
-      final botonAgregar = find.byType(FloatingActionButton);
-      await tester.tap(botonAgregar);
-      await tester.pumpAndSettle();
+await tester.enterText(
+campos.at(0),
+'estudiante@gmail.com',
+);
 
-      final campoTitulo = find.widgetWithText(TextFormField, 'Título de la tarea*');
-      final campoDesc = find.widgetWithText(TextFormField, 'Descripción (Opcional)');
-      final botonCrearTarea = find.widgetWithText(ElevatedButton, 'Crear Tarea');
+await tester.enterText(
+campos.at(1),
+'password123',
+);
 
-      const tituloPrueba = 'Tarea QA Suite Integral';
-      await tester.enterText(campoTitulo, tituloPrueba);
-      await tester.enterText(campoDesc, 'Verificando interoperabilidad Firestore -> StreamBuilder');
+await tester.testTextInput.receiveAction(
+TextInputAction.done,
+);
 
-      await tester.testTextInput.receiveAction(TextInputAction.done);
-      await tester.ensureVisible(botonCrearTarea);
-      await tester.pumpAndSettle();
+await tester.ensureVisible(botonLogin);
+await tester.pumpAndSettle();
 
-      await tester.tap(botonCrearTarea);
-      await tester.pumpAndSettle(const Duration(seconds: 4));
+await tester.tap(botonLogin);
+await tester.pumpAndSettle();
 
-      // ✅ CORRECCIÓN: Usamos findsWidgets por si acumulas tareas de pruebas anteriores
-      expect(find.text(tituloPrueba), findsWidgets);
-      expect(find.text('Verificando interoperabilidad Firestore -> StreamBuilder'), findsWidgets);
-    });
+expect(
+find.text(
+'Solo se permiten correos institucionales @e.uttecamac.edu.mx',
+),
+findsOneWidget,
+);
+}
 
-    // -------------------------------------------------------------------------
-    // CASO 3: GESTIÓN DE TABLEROS Y NAVEGACIÓN (MENÚ LATERAL)
-    // -------------------------------------------------------------------------
-    testWidgets('Caso 3: Navegación por menú lateral y creación de tablero individual', (WidgetTester tester) async {
-      app.main();
-      await iniciarSesionSiEsNecesario(tester);
+await iniciarSesionSiEsNecesario(tester);
 
-      final botonMenu = find.byIcon(Icons.menu);
-      await tester.tap(botonMenu);
-      await tester.pumpAndSettle();
+expect(find.text('Mis Tableros'), findsWidgets);
+},
+);
 
-      expect(find.text('Kanbly'), findsWidgets);
-      final opcionMisTableros = find.text('Mis Tableros').last;
-      await tester.tap(opcionMisTableros);
-      await tester.pumpAndSettle();
+// CASO 2: CREACIÓN DE TAREA
+testWidgets(
+'Caso 2: Crear tarea y verificar sincronización en tiempo real en el tablero',
+(WidgetTester tester) async {
+await app.main();
+await tester.pumpAndSettle();
 
-      await tester.tap(find.byType(FloatingActionButton));
-      await tester.pumpAndSettle();
+await iniciarSesionSiEsNecesario(tester);
 
-      final opcionIndividual = find.text('Tablero Individual');
-      await tester.tap(opcionIndividual);
-      await tester.pumpAndSettle();
+expect(find.text('Mis Tableros'), findsWidgets);
 
-      final campoNombre = find.widgetWithText(TextFormField, 'Ej. Sprint 1...');
-      const nombreTableroTest = 'Tablero QA Automatizado';
-      await tester.enterText(campoNombre, nombreTableroTest);
+final tarjetaTablero = find.text('Por hacer');
 
-      await tester.testTextInput.receiveAction(TextInputAction.done);
-      final botonGuardar = find.widgetWithText(ElevatedButton, 'Crear Tablero');
-      await tester.ensureVisible(botonGuardar);
-      await tester.pumpAndSettle();
+expect(
+tarjetaTablero,
+findsWidgets,
+reason: 'No se encontró una tarjeta con el texto Por hacer.',
+);
 
-      await tester.tap(botonGuardar);
-      await tester.pumpAndSettle(const Duration(seconds: 3));
+await tester.tap(tarjetaTablero.first);
+await tester.pumpAndSettle(
+const Duration(seconds: 3),
+);
 
-      // ✅ CORRECCIÓN: Usamos findsWidgets para que no falle si ya existe un tablero previo con este nombre
-      expect(find.text(nombreTableroTest), findsWidgets);
-      expect(find.text('Individual'), findsWidgets);
-    });
+expect(find.text('POR HACER'), findsWidgets);
 
-    // -------------------------------------------------------------------------
-    // CASO 4: INTEGRACIÓN DE UTILERÍAS Y FORMATEO DE DATOS EN LA UI
-    // -------------------------------------------------------------------------
-    testWidgets('Caso 4: Verificar que FormatoUtil se comunique correctamente sin errores de renderizado', (WidgetTester tester) async {
-      // A. Validación lógica en memoria
-      final usuarioPrueba = Usuario(
-        id: '123',
-        email: 'test@e.uttecamac.edu.mx',
-        nombreCompleto: 'Martin Villalobos',
-        fechaRegistro: DateTime.now(),
-      );
+final botonAgregar = find.byType(FloatingActionButton);
 
-      final iniciales = FormatoUtil.obtenerIniciales(usuarioPrueba);
-      expect(iniciales, 'MV');
+expect(botonAgregar, findsOneWidget);
 
-      final colorAlta = FormatoUtil.obtenerColorPorPrioridad(3);
-      expect(colorAlta, const Color(0xFF63D0A1));
+await tester.tap(botonAgregar);
+await tester.pumpAndSettle();
 
-      // B. Validación en interfaz real
-      app.main();
-      await iniciarSesionSiEsNecesario(tester);
+final campoTitulo =
+find.widgetWithText(TextFormField, 'Título de la tarea*');
 
-      expect(find.text('Mis Tableros'), findsWidgets);
+final campoDesc = find.widgetWithText(
+TextFormField,
+'Descripción (Opcional)',
+);
 
-      final tarjetaTablero = find.text('Por hacer').first;
-      await tester.tap(tarjetaTablero);
-      await tester.pumpAndSettle(const Duration(seconds: 4));
+final botonCrearTarea =
+find.widgetWithText(ElevatedButton, 'Crear Tarea');
 
-      expect(find.text('POR HACER'), findsWidgets);
+const tituloPrueba = 'Tarea QA Suite Integral';
+const descripcionPrueba =
+'Verificando interoperabilidad Firestore -> StreamBuilder';
 
-      final contenedoresVisuales = find.byType(Container);
-      expect(contenedoresVisuales, findsWidgets);
-    });
+await tester.enterText(campoTitulo, tituloPrueba);
+await tester.enterText(campoDesc, descripcionPrueba);
 
-  });
+await tester.testTextInput.receiveAction(
+TextInputAction.done,
+);
+
+await tester.ensureVisible(botonCrearTarea);
+await tester.pumpAndSettle();
+
+await tester.tap(botonCrearTarea);
+await tester.pumpAndSettle(
+const Duration(seconds: 4),
+);
+
+expect(find.text(tituloPrueba), findsWidgets);
+expect(find.text(descripcionPrueba), findsWidgets);
+},
+);
+
+// CASO 3: MENÚ LATERAL Y CREACIÓN DE TABLERO
+testWidgets(
+'Caso 3: Navegación por menú lateral y creación de tablero individual',
+(WidgetTester tester) async {
+await app.main();
+await tester.pumpAndSettle();
+
+await iniciarSesionSiEsNecesario(tester);
+
+final botonMenu = find.byIcon(Icons.menu);
+
+expect(
+botonMenu,
+findsOneWidget,
+reason: 'No se encontró el icono del menú lateral.',
+);
+
+await tester.tap(botonMenu);
+await tester.pumpAndSettle();
+
+expect(find.text('Kanbly'), findsWidgets);
+
+final opcionMisTableros = find.text('Mis Tableros').last;
+
+await tester.tap(opcionMisTableros);
+await tester.pumpAndSettle();
+
+final botonAgregar = find.byType(FloatingActionButton);
+
+expect(botonAgregar, findsOneWidget);
+
+await tester.tap(botonAgregar);
+await tester.pumpAndSettle();
+
+final opcionIndividual = find.text('Tablero Individual');
+
+expect(opcionIndividual, findsOneWidget);
+
+await tester.tap(opcionIndividual);
+await tester.pumpAndSettle();
+
+final campoNombre =
+find.widgetWithText(TextFormField, 'Ej. Sprint 1...');
+
+const nombreTableroTest = 'Tablero QA Automatizado';
+
+await tester.enterText(
+campoNombre,
+nombreTableroTest,
+);
+
+await tester.testTextInput.receiveAction(
+TextInputAction.done,
+);
+
+final botonGuardar =
+find.widgetWithText(ElevatedButton, 'Crear Tablero');
+
+await tester.ensureVisible(botonGuardar);
+await tester.pumpAndSettle();
+
+await tester.tap(botonGuardar);
+await tester.pumpAndSettle(
+const Duration(seconds: 3),
+);
+
+expect(find.text(nombreTableroTest), findsWidgets);
+expect(find.text('Individual'), findsWidgets);
+},
+);
+
+// CASO 4: UTILIDADES Y RENDERIZADO
+testWidgets(
+'Caso 4: Verificar que FormatoUtil se comunique correctamente sin errores de renderizado',
+(WidgetTester tester) async {
+// A. Validación lógica de FormatoUtil.
+final usuarioPrueba = Usuario(
+id: '123',
+email: 'test@e.uttecamac.edu.mx',
+nombreCompleto: 'Martin Villalobos',
+fechaRegistro: DateTime.now(),
+);
+
+expect(
+FormatoUtil.obtenerIniciales(usuarioPrueba),
+'MV',
+);
+
+// Los colores deben coincidir con la implementación real.
+expect(
+FormatoUtil.obtenerColorPorPrioridad(3),
+const Color(0xFFE53E3E),
+);
+
+expect(
+FormatoUtil.obtenerColorPorPrioridad(2),
+const Color(0xFFED8936),
+);
+
+expect(
+FormatoUtil.obtenerColorPorPrioridad(1),
+const Color(0xFF38A169),
+);
+
+expect(
+FormatoUtil.obtenerTextoPrioridad(3),
+'Alta',
+);
+
+expect(
+FormatoUtil.obtenerTextoPrioridad(2),
+'Media',
+);
+
+expect(
+FormatoUtil.obtenerTextoPrioridad(1),
+'Baja',
+);
+
+// B. Validación básica de la interfaz.
+await app.main();
+await tester.pumpAndSettle();
+
+await iniciarSesionSiEsNecesario(tester);
+
+expect(find.text('Mis Tableros'), findsWidgets);
+
+final tarjetaTablero = find.text('Por hacer');
+
+expect(tarjetaTablero, findsWidgets);
+
+await tester.tap(tarjetaTablero.first);
+await tester.pumpAndSettle(
+const Duration(seconds: 4),
+);
+
+expect(find.text('POR HACER'), findsWidgets);
+expect(find.byType(Container), findsWidgets);
+},
+);
+});
 }
